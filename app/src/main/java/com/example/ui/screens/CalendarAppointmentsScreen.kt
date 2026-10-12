@@ -47,7 +47,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -62,6 +61,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -148,10 +151,14 @@ fun CalendarAppointmentsScreen(
 ) {
   val context = LocalContext.current
 
-  // Date State - Defaults to October 2026 to match mock data, or current calendar
-  var currentYear by remember { mutableIntStateOf(2026) }
-  var currentMonth by remember { mutableIntStateOf(9) } // 0-indexed: 9 = October
-  var selectedDay by remember { mutableStateOf<Int?>(14) } // Default selected Oct 14
+  // Date State - opens on the phone's real "today"
+  val today = remember { Calendar.getInstance() }
+  val todayYear = today.get(Calendar.YEAR)
+  val todayMonth = today.get(Calendar.MONTH) // 0-indexed
+  val todayDay = today.get(Calendar.DAY_OF_MONTH)
+  var currentYear by remember { mutableIntStateOf(todayYear) }
+  var currentMonth by remember { mutableIntStateOf(todayMonth) }
+  var selectedDay by remember { mutableStateOf<Int?>(todayDay) }
   var viewMode by remember { mutableStateOf(CalendarViewMode.MONTH_GRID) }
   var selectedStatusFilter by remember { mutableStateOf("All") } // "All", "Upcoming", "Completed"
 
@@ -223,7 +230,11 @@ fun CalendarAppointmentsScreen(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
       ) {
-        Column {
+        Column(
+          modifier = Modifier
+            .weight(1f)
+            .padding(end = 12.dp)
+        ) {
           Text(
             text = "Viewing Calendar",
             style = MaterialTheme.typography.headlineSmall.copy(
@@ -247,59 +258,41 @@ fun CalendarAppointmentsScreen(
             .clip(RoundedCornerShape(12.dp))
             .background(SandMuted)
             .border(1.dp, SandWarm, RoundedCornerShape(12.dp))
-            .padding(2.dp),
+            .padding(3.dp),
           horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-          IconButton(
+          CalendarIconControl(
+            icon = Icons.Default.CalendarMonth,
+            contentDescription = "Month Grid",
             onClick = { viewMode = CalendarViewMode.MONTH_GRID },
-            modifier = Modifier
-              .size(32.dp)
-              .clip(RoundedCornerShape(10.dp))
-              .background(if (viewMode == CalendarViewMode.MONTH_GRID) ForestGreen else Color.Transparent)
-              .testTag("month_view_mode_button")
-          ) {
-            Icon(
-              imageVector = Icons.Default.CalendarMonth,
-              contentDescription = "Month Grid",
-              tint = if (viewMode == CalendarViewMode.MONTH_GRID) Color.White else TaupeDark,
-              modifier = Modifier.size(16.dp)
-            )
-          }
+            shape = RoundedCornerShape(10.dp),
+            containerColor = if (viewMode == CalendarViewMode.MONTH_GRID) ForestGreen else Color.Transparent,
+            tint = if (viewMode == CalendarViewMode.MONTH_GRID) Color.White else TaupeDark,
+            modifier = Modifier.testTag("month_view_mode_button")
+          )
 
-          IconButton(
+          CalendarIconControl(
+            icon = Icons.Default.Today,
+            contentDescription = "Week Carousel",
             onClick = { viewMode = CalendarViewMode.WEEK_STRIP },
-            modifier = Modifier
-              .size(32.dp)
-              .clip(RoundedCornerShape(10.dp))
-              .background(if (viewMode == CalendarViewMode.WEEK_STRIP) ForestGreen else Color.Transparent)
-              .testTag("week_view_mode_button")
-          ) {
-            Icon(
-              imageVector = Icons.Default.Today,
-              contentDescription = "Week Carousel",
-              tint = if (viewMode == CalendarViewMode.WEEK_STRIP) Color.White else TaupeDark,
-              modifier = Modifier.size(16.dp)
-            )
-          }
+            shape = RoundedCornerShape(10.dp),
+            containerColor = if (viewMode == CalendarViewMode.WEEK_STRIP) ForestGreen else Color.Transparent,
+            tint = if (viewMode == CalendarViewMode.WEEK_STRIP) Color.White else TaupeDark,
+            modifier = Modifier.testTag("week_view_mode_button")
+          )
 
-          IconButton(
+          CalendarIconControl(
+            icon = Icons.Default.FormatListBulleted,
+            contentDescription = "Agenda List",
             onClick = {
               viewMode = CalendarViewMode.AGENDA_LIST
               selectedDay = null // View all in list mode
             },
-            modifier = Modifier
-              .size(32.dp)
-              .clip(RoundedCornerShape(10.dp))
-              .background(if (viewMode == CalendarViewMode.AGENDA_LIST) ForestGreen else Color.Transparent)
-              .testTag("list_view_mode_button")
-          ) {
-            Icon(
-              imageVector = Icons.Default.FormatListBulleted,
-              contentDescription = "Agenda List",
-              tint = if (viewMode == CalendarViewMode.AGENDA_LIST) Color.White else TaupeDark,
-              modifier = Modifier.size(16.dp)
-            )
-          }
+            shape = RoundedCornerShape(10.dp),
+            containerColor = if (viewMode == CalendarViewMode.AGENDA_LIST) ForestGreen else Color.Transparent,
+            tint = if (viewMode == CalendarViewMode.AGENDA_LIST) Color.White else TaupeDark,
+            modifier = Modifier.testTag("list_view_mode_button")
+          )
         }
       }
     }
@@ -326,17 +319,20 @@ fun CalendarAppointmentsScreen(
               horizontalArrangement = Arrangement.SpaceBetween,
               verticalAlignment = Alignment.CenterVertically
             ) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
+              Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
                 Text(
                   text = "$currentMonthName $currentYear",
                   style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = NaturalDark,
-                    fontSize = 19.sp
+                    fontSize = 20.sp
                   )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                // Quick Jump to Oct 2026 / Today
+                // Quick jump back to today
                 Surface(
                   shape = RoundedCornerShape(8.dp),
                   color = SandMuted,
@@ -344,9 +340,9 @@ fun CalendarAppointmentsScreen(
                   modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable {
-                      currentYear = 2026
-                      currentMonth = 9
-                      selectedDay = 14
+                      currentYear = todayYear
+                      currentMonth = todayMonth
+                      selectedDay = todayDay
                     }
                 ) {
                   Text(
@@ -362,8 +358,10 @@ fun CalendarAppointmentsScreen(
               }
 
               // Month Navigation Arrows
-              Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(
+              Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CalendarIconControl(
+                  icon = Icons.AutoMirrored.Filled.ArrowBack,
+                  contentDescription = "Previous Month",
                   onClick = {
                     if (currentMonth == 0) {
                       currentMonth = 11
@@ -372,21 +370,16 @@ fun CalendarAppointmentsScreen(
                       currentMonth -= 1
                     }
                   },
-                  modifier = Modifier
-                    .size(34.dp)
-                    .background(SandMuted, CircleShape)
-                    .border(1.dp, SandWarm, CircleShape)
-                    .testTag("prev_month_button")
-                ) {
-                  Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Previous Month",
-                    tint = NaturalDark,
-                    modifier = Modifier.size(16.dp)
-                  )
-                }
+                  shape = CircleShape,
+                  containerColor = SandMuted,
+                  tint = NaturalDark,
+                  borderColor = SandWarm,
+                  modifier = Modifier.testTag("prev_month_button")
+                )
 
-                IconButton(
+                CalendarIconControl(
+                  icon = Icons.AutoMirrored.Filled.ArrowForward,
+                  contentDescription = "Next Month",
                   onClick = {
                     if (currentMonth == 11) {
                       currentMonth = 0
@@ -395,19 +388,12 @@ fun CalendarAppointmentsScreen(
                       currentMonth += 1
                     }
                   },
-                  modifier = Modifier
-                    .size(34.dp)
-                    .background(SandMuted, CircleShape)
-                    .border(1.dp, SandWarm, CircleShape)
-                    .testTag("next_month_button")
-                ) {
-                  Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Next Month",
-                    tint = NaturalDark,
-                    modifier = Modifier.size(16.dp)
-                  )
-                }
+                  shape = CircleShape,
+                  containerColor = SandMuted,
+                  tint = NaturalDark,
+                  borderColor = SandWarm,
+                  modifier = Modifier.testTag("next_month_button")
+                )
               }
             }
 
@@ -456,7 +442,7 @@ fun CalendarAppointmentsScreen(
                         val dayAppts = getAppointmentsForDay(dayNumber)
                         val hasUpcoming = dayAppts.any { it.status == AppointmentStatus.UPCOMING || it.status == AppointmentStatus.PENDING }
                         val hasCompleted = dayAppts.any { it.status == AppointmentStatus.COMPLETED }
-                        val isToday = dayNumber == 14 && currentMonth == 9 && currentYear == 2026
+                        val isToday = dayNumber == todayDay && currentMonth == todayMonth && currentYear == todayYear
 
                         Box(
                           modifier = Modifier
@@ -631,7 +617,7 @@ fun CalendarAppointmentsScreen(
                 style = MaterialTheme.typography.titleMedium.copy(
                   fontWeight = FontWeight.Bold,
                   color = NaturalDark,
-                  fontSize = 16.5.sp
+                  fontSize = 16.sp
                 )
               )
               Text(
@@ -646,12 +632,12 @@ fun CalendarAppointmentsScreen(
             if (selectedDay != null) {
               OutlinedButton(
                 onClick = { selectedDay = null },
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, SandWarm),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = ForestGreen),
                 modifier = Modifier.height(34.dp).testTag("view_all_month_button")
               ) {
-                Text("Show All", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
+                Text("Show All", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
               }
             }
           }
@@ -745,7 +731,7 @@ fun CalendarAppointmentsScreen(
                 Button(
                   onClick = { selectedDay = null },
                   colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-                  shape = RoundedCornerShape(10.dp),
+                  shape = RoundedCornerShape(12.dp),
                   modifier = Modifier.height(36.dp)
                 ) {
                   Text("View All Dates", fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -854,7 +840,7 @@ fun CalendarAppointmentsScreen(
                   text = appt.propertyAddress,
                   style = MaterialTheme.typography.bodySmall.copy(
                     color = TaupeDark,
-                    fontSize = 12.5.sp
+                    fontSize = 13.sp
                   )
                 )
               }
@@ -871,7 +857,7 @@ fun CalendarAppointmentsScreen(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     style = MaterialTheme.typography.bodySmall.copy(
                       color = TaupeDark,
-                      fontSize = 11.5.sp
+                      fontSize = 12.sp
                     ),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -942,7 +928,7 @@ fun CalendarAppointmentsScreen(
                   Button(
                     onClick = { onUpdateStatus(appt.id, AppointmentStatus.COMPLETED) },
                     colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.testTag("complete_appt_${appt.id}")
                   ) {
                     Icon(
@@ -961,5 +947,39 @@ fun CalendarAppointmentsScreen(
         }
       }
     }
+  }
+}
+
+/**
+ * Fixed-size icon control for the calendar header. Material's IconButton
+ * enforces a 48dp touch target, which made these small chips draw over each other.
+ */
+@Composable
+private fun CalendarIconControl(
+  icon: ImageVector,
+  contentDescription: String,
+  onClick: () -> Unit,
+  shape: Shape,
+  containerColor: Color,
+  tint: Color,
+  modifier: Modifier = Modifier,
+  borderColor: Color? = null,
+  size: Dp = 36.dp
+) {
+  Box(
+    modifier = modifier
+      .size(size)
+      .clip(shape)
+      .background(containerColor)
+      .then(if (borderColor != null) Modifier.border(1.dp, borderColor, shape) else Modifier)
+      .clickable(role = Role.Button, onClick = onClick),
+    contentAlignment = Alignment.Center
+  ) {
+    Icon(
+      imageVector = icon,
+      contentDescription = contentDescription,
+      tint = tint,
+      modifier = Modifier.size(18.dp)
+    )
   }
 }

@@ -2,6 +2,7 @@ package com.example.data.remote
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.BuildConfig
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
@@ -14,17 +15,13 @@ class EstateApiClient private constructor(context: Context) {
 
   private val prefs: SharedPreferences = context.getSharedPreferences("estateflow_backend_prefs", Context.MODE_PRIVATE)
 
-  // Default address for the deployed Wasmer backend
-  var baseUrl: String
-    get() {
-      val raw = prefs.getString("backend_url", DEFAULT_EMULATOR_URL) ?: DEFAULT_EMULATOR_URL
-      return normalizeUrl(raw)
-    }
-    set(value) {
-      val normalized = normalizeUrl(value)
-      prefs.edit().putString("backend_url", normalized).apply()
-      rebuildService(normalized)
-    }
+  // The app always talks to the deployed backend. The address is not shown
+  // or editable in the UI, so drop any address saved by older builds.
+  val baseUrl: String = DEFAULT_EMULATOR_URL
+
+  init {
+    prefs.edit().remove("backend_url").apply()
+  }
 
   val moshi: Moshi = Moshi.Builder()
     .addLast(KotlinJsonAdapterFactory())
@@ -35,15 +32,12 @@ class EstateApiClient private constructor(context: Context) {
     .readTimeout(8, TimeUnit.SECONDS)
     .writeTimeout(8, TimeUnit.SECONDS)
     .addInterceptor(HttpLoggingInterceptor().apply {
-      level = HttpLoggingInterceptor.Level.BODY
+      // Request bodies carry passwords, so never log them outside debug builds.
+      level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
     })
     .build()
 
-  @Volatile
-  private var currentService: EstateApiService = buildService(baseUrl)
-
-  val service: EstateApiService
-    get() = currentService
+  val service: EstateApiService = buildService(baseUrl)
 
   private fun buildService(url: String): EstateApiService {
     val cleanUrl = if (url.endsWith("/")) url else "$url/"
@@ -55,13 +49,8 @@ class EstateApiClient private constructor(context: Context) {
       .create(EstateApiService::class.java)
   }
 
-  private fun rebuildService(newUrl: String) {
-    currentService = buildService(newUrl)
-  }
-
   companion object {
     const val DEFAULT_EMULATOR_URL = "https://estateflow-backend.wasmer.app/api/"
-    const val DEFAULT_LAN_URL_TEMPLATE = "http://192.168.1.100/estateflow-backend/api/"
 
     @Volatile
     private var INSTANCE: EstateApiClient? = null

@@ -104,7 +104,7 @@ fun SearchScreen(
         .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
       Text(
-        text = "Find Your Sanctuary",
+        text = "Find Your Home",
         style = MaterialTheme.typography.headlineSmall.copy(
           fontWeight = FontWeight.Bold,
           color = MaterialTheme.colorScheme.onBackground,
@@ -271,7 +271,7 @@ fun SearchScreen(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelSmall.copy(
               color = tagTextColor,
-              fontSize = 11.5.sp,
+              fontSize = 12.sp,
               fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
             )
           )
@@ -324,7 +324,7 @@ fun SearchScreen(
             Button(
               onClick = { onSearchQueryChange("") },
               colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-              shape = RoundedCornerShape(10.dp),
+              shape = RoundedCornerShape(12.dp),
               modifier = Modifier.testTag("clear_search_empty_button")
             ) {
               Text("Clear Search & Filters", fontWeight = FontWeight.Bold, color = Color.White)

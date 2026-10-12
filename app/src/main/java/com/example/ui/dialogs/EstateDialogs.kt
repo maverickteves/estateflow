@@ -1,5 +1,6 @@
 package com.example.ui.dialogs
 
+import com.example.data.model.upcomingViewingDates
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,6 +51,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -121,7 +123,8 @@ fun BookingDialog(
   onDateSelected: (String) -> Unit = {},
   onTimeSlotSelected: (String) -> Unit = {},
   onConfirm: () -> Unit,
-  onDismiss: () -> Unit
+  onDismiss: () -> Unit,
+  isSubmitting: Boolean = false
 ) {
   Dialog(
     onDismissRequest = onDismiss,
@@ -157,7 +160,7 @@ fun BookingDialog(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = "Schedule Sanctuary Tour",
+            text = "Schedule a Viewing",
             style = MaterialTheme.typography.titleLarge.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurface,
@@ -364,14 +367,15 @@ fun BookingDialog(
 
           Button(
             onClick = onConfirm,
+            enabled = !isSubmitting,
             modifier = Modifier
               .fillMaxWidth()
-              .height(50.dp)
+              .height(48.dp)
               .testTag("confirm_booking_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+            colors = savingButtonColors(ForestGreen),
             shape = RoundedCornerShape(12.dp)
           ) {
-            Text("Confirm Viewing Appointment", fontWeight = FontWeight.Bold, color = Color.White)
+            if (isSubmitting) ButtonSpinner() else Text("Confirm Viewing Appointment", fontWeight = FontWeight.Bold, color = Color.White)
           }
         }
       }
@@ -436,7 +440,7 @@ fun BookingSuccessDialog(
             style = MaterialTheme.typography.labelSmall.copy(
               color = ForestGreen,
               fontWeight = FontWeight.Bold,
-              fontSize = 10.5.sp,
+              fontSize = 11.sp,
               letterSpacing = 0.5.sp
             ),
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
@@ -565,7 +569,7 @@ fun PropertyMediaPickerCard(
             text = "Photos & Video Walkthrough (${mediaUris.size} attached)",
             style = MaterialTheme.typography.bodySmall.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
-              fontSize = 11.5.sp
+              fontSize = 12.sp
             )
           )
         }
@@ -590,7 +594,7 @@ fun PropertyMediaPickerCard(
           .height(40.dp)
           .testTag("pick_device_media_button"),
         colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)
       ) {
         Icon(
@@ -605,7 +609,7 @@ fun PropertyMediaPickerCard(
           style = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.Bold,
             color = Color.White,
-            fontSize = 11.5.sp
+            fontSize = 12.sp
           )
         )
       }
@@ -616,7 +620,7 @@ fun PropertyMediaPickerCard(
           .weight(0.9f)
           .height(40.dp)
           .testTag("toggle_url_media_button"),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, ForestGreen),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp)
       ) {
@@ -701,7 +705,7 @@ fun PropertyMediaPickerCard(
             }
           },
           colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-          shape = RoundedCornerShape(8.dp),
+          shape = RoundedCornerShape(12.dp),
           modifier = Modifier.height(48.dp).testTag("submit_url_media_button")
         ) {
           Text("Add", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
@@ -735,14 +739,14 @@ fun PropertyMediaPickerCard(
             style = MaterialTheme.typography.bodySmall.copy(
               color = MaterialTheme.colorScheme.onSurface,
               fontWeight = FontWeight.Medium,
-              fontSize = 11.5.sp
+              fontSize = 12.sp
             )
           )
           Text(
             text = "Import files or paste links to showcase your property",
             style = MaterialTheme.typography.labelSmall.copy(
               color = MaterialTheme.colorScheme.onSurfaceVariant,
-              fontSize = 10.5.sp
+              fontSize = 11.sp
             )
           )
         }
@@ -800,7 +804,7 @@ fun PropertyMediaPickerCard(
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
                   color = Color.White,
-                  fontSize = 8.sp,
+                  fontSize = 9.sp,
                   fontWeight = FontWeight.Bold
                 )
               )
@@ -835,6 +839,7 @@ fun PropertyMediaPickerCard(
 @Composable
 fun AddPropertyDialog(
   onDismiss: () -> Unit,
+  isSubmitting: Boolean = false,
   onAddProperty: (
     title: String,
     address: String,
@@ -863,7 +868,7 @@ fun AddPropertyDialog(
   var propertyType by remember { mutableStateOf("Townhouse") }
   var description by remember { mutableStateOf("") }
   var amenitiesText by remember { mutableStateOf("Rooftop Deck, Garage Parking, Central AC") }
-  var availableDatesText by remember { mutableStateOf("Mon, Oct 14, Tue, Oct 15, Wed, Oct 16, Thu, Oct 17") }
+  var availableDatesText by remember { mutableStateOf(upcomingViewingDates().joinToString(", ")) }
   var availableTimeSlotsText by remember { mutableStateOf("10:00 AM, 1:30 PM, 4:00 PM, 5:30 PM") }
   var mediaUris by remember { mutableStateOf<List<String>>(emptyList()) }
   var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -905,7 +910,7 @@ fun AddPropertyDialog(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = "Publish New Sanctuary",
+            text = "Publish New Listing",
             style = MaterialTheme.typography.titleLarge.copy(
               fontWeight = FontWeight.Bold,
               color = MaterialTheme.colorScheme.onSurface,
@@ -1173,7 +1178,7 @@ fun AddPropertyDialog(
               val baths = bathsText.toDoubleOrNull() ?: 2.0
               val sqft = sqftText.toIntOrNull() ?: 1500
               val amenitiesList = amenitiesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-              val datesList = availableDatesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+              val datesList = parseViewingDates(availableDatesText)
               val timeSlotsList = availableTimeSlotsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
               onAddProperty(
@@ -1186,18 +1191,19 @@ fun AddPropertyDialog(
                 baths,
                 sqft,
                 propertyType,
-                description.ifBlank { "Contemporary architectural sanctuary with designer touches, high efficiency appliances, and prime central location in Cebu City." },
+                description.ifBlank { "Contemporary home with designer touches, high efficiency appliances, and prime central location in Cebu City." },
                 amenitiesList,
                 mediaUris,
-                datesList.ifEmpty { listOf("Mon, Oct 14", "Tue, Oct 15", "Wed, Oct 16", "Thu, Oct 17") },
+                datesList.ifEmpty { upcomingViewingDates() },
                 timeSlotsList.ifEmpty { listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM") }
               )
             },
+            enabled = !isSubmitting,
             modifier = Modifier.fillMaxWidth().height(48.dp).testTag("submit_add_property_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+            colors = savingButtonColors(ForestGreen),
             shape = RoundedCornerShape(12.dp)
           ) {
-            Text("Publish Listing", fontWeight = FontWeight.Bold, color = Color.White)
+            if (isSubmitting) ButtonSpinner() else Text("Publish Listing", fontWeight = FontWeight.Bold, color = Color.White)
           }
         }
       }
@@ -1210,7 +1216,8 @@ fun EditPropertyDialog(
   property: Property,
   onDismiss: () -> Unit,
   onUpdateProperty: (Property) -> Unit,
-  onDeleteProperty: () -> Unit
+  onDeleteProperty: () -> Unit,
+  isSubmitting: Boolean = false
 ) {
   var title by remember { mutableStateOf(property.title) }
   var address by remember { mutableStateOf(property.address) }
@@ -1279,7 +1286,7 @@ fun EditPropertyDialog(
               style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 19.sp
+                fontSize = 20.sp
               )
             )
           }
@@ -1596,7 +1603,7 @@ fun EditPropertyDialog(
             val baths = bathsText.toDoubleOrNull() ?: property.baths
             val sqft = sqftText.toIntOrNull() ?: property.sqft
             val amenitiesList = amenitiesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-            val datesList = availableDatesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val datesList = parseViewingDates(availableDatesText)
             val timeSlotsList = availableTimeSlotsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
             val updated = property.copy(
@@ -1618,11 +1625,12 @@ fun EditPropertyDialog(
             )
             onUpdateProperty(updated)
           },
+          enabled = !isSubmitting,
           modifier = Modifier.fillMaxWidth().height(48.dp).testTag("save_property_changes_button"),
-          colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+          colors = savingButtonColors(ForestGreen),
           shape = RoundedCornerShape(12.dp)
         ) {
-          Text("Save Changes", fontWeight = FontWeight.Bold, color = Color.White)
+          if (isSubmitting) ButtonSpinner() else Text("Save Changes", fontWeight = FontWeight.Bold, color = Color.White)
         }
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -1647,7 +1655,8 @@ fun EditPropertyDialog(
 fun DeletePropertyConfirmationDialog(
   property: Property,
   onDismiss: () -> Unit,
-  onConfirmDelete: () -> Unit
+  onConfirmDelete: () -> Unit,
+  isSubmitting: Boolean = false
 ) {
   Dialog(
     onDismissRequest = onDismiss,
@@ -1733,14 +1742,15 @@ fun DeletePropertyConfirmationDialog(
 
             Button(
               onClick = onConfirmDelete,
+              enabled = !isSubmitting,
               modifier = Modifier
                 .weight(1f)
                 .height(44.dp)
                 .testTag("confirm_delete_property_button"),
-              colors = ButtonDefaults.buttonColors(containerColor = RoseFavorite),
+              colors = savingButtonColors(RoseFavorite),
               shape = RoundedCornerShape(12.dp)
             ) {
-              Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
+              if (isSubmitting) ButtonSpinner() else Text("Remove", color = Color.White, fontWeight = FontWeight.Bold)
             }
           }
         }
@@ -1863,7 +1873,7 @@ fun PropertyVideoPlayerDialog(
                   // fall through
                 }
               },
-              shape = RoundedCornerShape(8.dp),
+              shape = RoundedCornerShape(12.dp),
               border = androidx.compose.foundation.BorderStroke(1.dp, SandWarm),
               contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 4.dp)
             ) {
@@ -1972,7 +1982,7 @@ fun FilterBottomSheet(
           ) {
             Column {
               Text(
-                text = "Filter Sanctuaries",
+                text = "Filter Listings",
                 style = MaterialTheme.typography.titleLarge.copy(
                   fontWeight = FontWeight.Bold,
                   color = MaterialTheme.colorScheme.onSurface,
@@ -1983,7 +1993,7 @@ fun FilterBottomSheet(
                 text = "Customize category, rooms, baths, floor area & amenities",
                 style = MaterialTheme.typography.bodySmall.copy(
                   color = MaterialTheme.colorScheme.onSurfaceVariant,
-                  fontSize = 11.5.sp
+                  fontSize = 12.sp
                 )
               )
             }
@@ -2179,7 +2189,7 @@ fun FilterBottomSheet(
               text = "Select minimum bedrooms required",
               style = MaterialTheme.typography.bodySmall.copy(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.5.sp
+                fontSize = 11.sp
               )
             )
           }
@@ -2235,7 +2245,7 @@ fun FilterBottomSheet(
               text = "Select minimum bathrooms required",
               style = MaterialTheme.typography.bodySmall.copy(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.5.sp
+                fontSize = 11.sp
               )
             )
           }
@@ -2267,7 +2277,7 @@ fun FilterBottomSheet(
                     style = MaterialTheme.typography.labelSmall.copy(
                       fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                       color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                      fontSize = 11.5.sp
+                      fontSize = 12.sp
                     )
                   )
                 }
@@ -2296,7 +2306,7 @@ fun FilterBottomSheet(
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = ForestGreen,
-                fontSize = 12.5.sp
+                fontSize = 13.sp
               )
             )
           }
@@ -2397,7 +2407,7 @@ fun FilterBottomSheet(
                     style = MaterialTheme.typography.labelSmall.copy(
                       fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                       color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                      fontSize = 11.5.sp
+                      fontSize = 12.sp
                     )
                   )
                 }
@@ -2459,7 +2469,7 @@ fun FilterBottomSheet(
                     style = MaterialTheme.typography.labelSmall.copy(
                       fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                       color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                      fontSize = 11.5.sp
+                      fontSize = 12.sp
                     )
                   )
                 }
@@ -2476,7 +2486,7 @@ fun FilterBottomSheet(
               border = androidx.compose.foundation.BorderStroke(1.dp, ForestGreen.copy(alpha = 0.3f))
             ) {
               Text(
-                text = "✨ $matchingCount property sanctuary(s) match your current filters",
+                text = if (matchingCount == 1) "1 listing matches your filters" else "$matchingCount listings match your filters",
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.labelMedium.copy(
                   color = ForestGreen,
@@ -2550,14 +2560,15 @@ fun InquiryDialog(
   property: Property,
   initialMessage: String,
   onSendMessage: (String) -> Unit,
-  onDismiss: () -> Unit
+  onDismiss: () -> Unit,
+  isSubmitting: Boolean = false
 ) {
   var messageText by remember { mutableStateOf(initialMessage) }
   val quickQuestions = listOf(
     "Is this property still available for private tour?",
     "Can we book an in-person walkthrough this week?",
-    "Could you send me the strata prospectus and floor plans?",
-    "What are the estimated annual property taxes?"
+    "Could you send me the floor plans and monthly association dues?",
+    "How much is the yearly real property tax?"
   )
 
   Dialog(
@@ -2703,14 +2714,15 @@ fun InquiryDialog(
                 onSendMessage(messageText.trim())
               }
             },
+            enabled = !isSubmitting,
             modifier = Modifier
               .fillMaxWidth()
               .height(48.dp)
               .testTag("send_inquiry_submit_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+            colors = savingButtonColors(ForestGreen),
             shape = RoundedCornerShape(12.dp)
           ) {
-            Text("Send Inquiry to Agent", fontWeight = FontWeight.Bold, color = Color.White)
+            if (isSubmitting) ButtonSpinner() else Text("Send Inquiry to Agent", fontWeight = FontWeight.Bold, color = Color.White)
           }
         }
       }
@@ -2718,3 +2730,43 @@ fun InquiryDialog(
   }
 }
 
+/** Keeps a disabled save button in its own colour while it shows [ButtonSpinner]. */
+@Composable
+private fun savingButtonColors(container: Color) = ButtonDefaults.buttonColors(
+  containerColor = container,
+  disabledContainerColor = container.copy(alpha = 0.75f),
+  disabledContentColor = Color.White
+)
+
+@Composable
+private fun ButtonSpinner() {
+  CircularProgressIndicator(
+    modifier = Modifier.size(20.dp),
+    color = Color.White,
+    strokeWidth = 2.dp
+  )
+}
+
+private val WEEKDAY_PREFIXES = setOf("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+/**
+ * Splits "Tue, Oct 13, Wed, Oct 14" into ["Tue, Oct 13", "Wed, Oct 14"]. A plain
+ * comma split would separate each weekday from its date.
+ */
+private fun parseViewingDates(text: String): List<String> {
+  val parts = text.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+  val dates = mutableListOf<String>()
+  var i = 0
+  while (i < parts.size) {
+    val part = parts[i]
+    val isWeekdayOnly = part.length <= 9 && WEEKDAY_PREFIXES.any { part.lowercase().startsWith(it) } && part.none { it.isDigit() }
+    if (isWeekdayOnly && i + 1 < parts.size) {
+      dates.add("$part, ${parts[i + 1]}")
+      i += 2
+    } else {
+      dates.add(part)
+      i += 1
+    }
+  }
+  return dates
+}

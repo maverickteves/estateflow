@@ -270,7 +270,7 @@ fun HomeListingsScreen(
             style = MaterialTheme.typography.labelMedium.copy(
               fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
               color = tabTextColor,
-              fontSize = 12.5.sp
+              fontSize = 13.sp
             )
           )
         }
@@ -347,7 +347,7 @@ fun HomeListingsScreen(
             } else if (onAddPropertyClick != null) {
               "The catalog is currently empty. Use the button below to add your first property listing."
             } else {
-              "No sanctuaries are currently available. Please check back soon for newly published listings."
+              "No listings are available right now. Please check back soon for new homes."
             },
             style = MaterialTheme.typography.bodyMedium.copy(color = TaupeMuted),
             textAlign = TextAlign.Center
@@ -356,7 +356,7 @@ fun HomeListingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Button(
               onClick = onAddPropertyClick,
-              shape = RoundedCornerShape(10.dp),
+              shape = RoundedCornerShape(12.dp),
               colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
               modifier = Modifier.testTag("empty_home_add_property_button")
             ) {

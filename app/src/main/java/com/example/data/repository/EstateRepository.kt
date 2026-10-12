@@ -1,5 +1,6 @@
 package com.example.data.repository
 
+import com.example.data.model.upcomingViewingDates
 import android.content.Context
 import com.example.R
 import com.example.data.local.EstateDatabase
@@ -107,7 +108,7 @@ class EstateRepository private constructor(
       propertyTitle = property?.title ?: "Property Viewing",
       propertyAddress = property?.address ?: "Address",
       clientName = clientName.ifBlank { "You (Verified Buyer)" },
-      clientPhone = clientPhone.ifBlank { "+1 (555) 019-8234" },
+      clientPhone = clientPhone.ifBlank { "+63 917 555 0134" },
       clientEmail = clientEmail.ifBlank { "buyer@estateflow.com" },
       date = date,
       timeSlot = timeSlot,
@@ -149,7 +150,7 @@ class EstateRepository private constructor(
     messageText: String,
     senderName: String = "You (Prospective Buyer)",
     senderEmail: String = "buyer@estateflow.com",
-    senderPhone: String = "+1 (555) 019-8234"
+    senderPhone: String = "+63 917 555 0134"
   ): Inquiry = withContext(Dispatchers.IO) {
     val property = database.propertyDao().findPropertyById(propertyId)
     val existingInquiry = database.inquiryDao().findInquiryByPropertyAndSender(propertyId, senderEmail)
@@ -267,7 +268,7 @@ class EstateRepository private constructor(
     description: String,
     amenities: List<String>,
     mediaUris: List<String> = emptyList(),
-    availableDates: List<String> = listOf("Mon, Oct 14", "Tue, Oct 15", "Wed, Oct 16", "Thu, Oct 17"),
+    availableDates: List<String> = upcomingViewingDates(),
     availableTimeSlots: List<String> = listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM")
   ): Property = withContext(Dispatchers.IO) {
     val formattedPrice = if (isRental) "₱${String.format("%,d", price)} / mo" else "₱${String.format("%,d", price)}"
@@ -288,7 +289,7 @@ class EstateRepository private constructor(
       mediaUris = mediaUris,
       isFavorite = false,
       status = "New Listing",
-      availableDates = availableDates.ifEmpty { listOf("Mon, Oct 14", "Tue, Oct 15", "Wed, Oct 16", "Thu, Oct 17") },
+      availableDates = availableDates.ifEmpty { upcomingViewingDates() },
       availableTimeSlots = availableTimeSlots.ifEmpty { listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM") },
       amenities = if (amenities.isEmpty()) listOf("Modern Design", "High Speed Internet", "Near Transit") else amenities
     )
@@ -321,7 +322,7 @@ class EstateRepository private constructor(
     val notif = NotificationItem(
       id = UUID.randomUUID().toString(),
       title = "Listing Updated",
-      message = "${updatedProperty.title} details and media have been updated in PostgreSQL.",
+      message = "${updatedProperty.title} details and media have been updated.",
       timestampFormatted = "Just now",
       type = NotificationType.LISTING_UPDATE,
       isRead = false,
@@ -367,9 +368,9 @@ class EstateRepository private constructor(
       id = UUID.randomUUID().toString(),
       title = "Listing Removed",
       message = if (backendDeleted) {
-        "$title permanently removed from PostgreSQL and active listings."
+        "$title has been permanently removed from active listings."
       } else if (backendError != null) {
-        "$title removed locally, but PostgreSQL update failed: $backendError"
+        "$title was removed from this device, but the change could not be saved online."
       } else {
         "$title has been removed from active listings, and related viewing appointments were cancelled."
       },
@@ -427,8 +428,8 @@ class EstateRepository private constructor(
     if (cleanName.isBlank() || cleanEmail.isBlank()) {
       return@withContext Result.failure(Exception("Full name and email address are required to create an account."))
     }
-    if (cleanPassword.length < 4) {
-      return@withContext Result.failure(Exception("Password must be at least 4 characters."))
+    if (cleanPassword.length < 8) {
+      return@withContext Result.failure(Exception("Password must be at least 8 characters."))
     }
 
     val remoteResult = syncManager?.signupClientOnBackend(cleanName, cleanEmail, cleanPhone, cleanPassword)
@@ -447,7 +448,7 @@ class EstateRepository private constructor(
       id = "client_${UUID.randomUUID().toString().take(8)}",
       name = cleanName,
       email = cleanEmail,
-      phone = if (cleanPhone.isNotBlank()) cleanPhone else "+1 (555) 019-8234",
+      phone = if (cleanPhone.isNotBlank()) cleanPhone else "+63 917 555 0134",
       role = UserRole.BUYER
     )
     database.userSessionDao().clearActiveSessions()
@@ -458,7 +459,7 @@ class EstateRepository private constructor(
   suspend fun loginAgent(emailOrLicense: String, password: String): Result<UserAccount> = withContext(Dispatchers.IO) {
     val input = emailOrLicense.trim()
     if (input.isBlank()) {
-      return@withContext Result.failure(Exception("Please enter your agent email or MLS license number."))
+      return@withContext Result.failure(Exception("Please enter your agent email or PRC license number."))
     }
     if (password.length < 4) {
       return@withContext Result.failure(Exception("Password must be at least 4 characters."))
@@ -492,8 +493,8 @@ class EstateRepository private constructor(
 
     if (cleanName.isBlank()) return@withContext Result.failure(Exception("Please enter your legal name."))
     if (cleanEmail.isBlank()) return@withContext Result.failure(Exception("Please enter your agent email."))
-    if (cleanLicense.isBlank()) return@withContext Result.failure(Exception("Please enter your MLS / Real Estate License number."))
-    if (password.length < 4) return@withContext Result.failure(Exception("Password must be at least 4 characters."))
+    if (cleanLicense.isBlank()) return@withContext Result.failure(Exception("Please enter your PRC real estate license number."))
+    if (password.length < 8) return@withContext Result.failure(Exception("Password must be at least 8 characters."))
 
     val remoteAccount = syncManager?.signupAgentOnBackend(
       name = cleanName,
@@ -516,7 +517,7 @@ class EstateRepository private constructor(
       id = "agent_${UUID.randomUUID().toString().take(8)}",
       name = cleanName,
       email = cleanEmail,
-      phone = "+1 (604) 555-0192",
+      phone = "+63 917 555 0192",
       role = UserRole.AGENT,
       licenseNo = cleanLicense,
       agency = cleanAgency,
@@ -540,10 +541,10 @@ class EstateRepository private constructor(
     database.userSessionDao().clearActiveSessions()
   }
 
-  suspend fun updatePassword(newPassword: String): Result<Unit> = withContext(Dispatchers.IO) {
+  suspend fun updatePassword(currentPassword: String, newPassword: String): Result<Unit> = withContext(Dispatchers.IO) {
     val session = database.userSessionDao().findActiveSession()
       ?: return@withContext Result.failure(Exception("No active user session."))
-    val result = syncManager?.updatePasswordOnBackend(session.email, newPassword)
+    val result = syncManager?.updatePasswordOnBackend(session.email, currentPassword, newPassword)
     if (result == null) {
       Result.success(Unit)
     } else if (result.isFailure) {
@@ -590,11 +591,9 @@ class EstateRepository private constructor(
     )
   }
 
-  suspend fun testBackendConnection() = syncManager?.testConnection()
+  suspend fun testBackendConnection(showConnecting: Boolean = true) = syncManager?.testConnection(showConnecting)
 
   suspend fun syncWithBackend() = syncManager?.syncWithBackend()
-
-  fun updateBackendUrl(newUrl: String) = syncManager?.updateBackendUrl(newUrl)
 
   private suspend fun seedDatabase() = withContext(Dispatchers.IO) {
     database.agentProfileDao().insertOrUpdateProfile(AgentProfileEntity.fromDomain(AgentProfile()))

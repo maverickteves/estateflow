@@ -62,7 +62,7 @@ fun SavedScreen(
         )
       )
       Text(
-        text = "${savedProperties.size} bookmarked homes in your sanctuary",
+        text = if (savedProperties.size == 1) "1 saved home" else "${savedProperties.size} saved homes",
         style = MaterialTheme.typography.bodySmall.copy(
           color = MaterialTheme.colorScheme.onSurfaceVariant,
           fontSize = 12.sp

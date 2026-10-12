@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.ui.components.PersonAvatar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -66,6 +67,8 @@ import com.example.data.model.Inquiry
 import com.example.data.model.Property
 import com.example.data.model.UserAccount
 import com.example.data.model.ViewingAppointment
+import com.example.ui.components.ConnectionStatus
+import com.example.ui.components.ConnectionStatusIndicator
 import com.example.ui.components.PropertyCard
 import com.example.ui.theme.*
 
@@ -73,6 +76,7 @@ import com.example.ui.theme.*
 fun AgentDashboardScreen(
   agentProfile: AgentProfile,
   currentUser: UserAccount? = null,
+  connectionStatus: ConnectionStatus = ConnectionStatus.CHECKING,
   appointments: List<ViewingAppointment>,
   inquiries: List<Inquiry>,
   activeListingsCount: Int,
@@ -139,22 +143,7 @@ fun AgentDashboardScreen(
           letterSpacing = 1.sp
         )
       )
-      Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-          modifier = Modifier
-            .size(7.dp)
-            .background(ForestGreen, CircleShape)
-        )
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(
-          text = "Live Agent Portal",
-          style = MaterialTheme.typography.labelSmall.copy(
-            color = ForestGreen,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 11.sp
-          )
-        )
-      }
+      ConnectionStatusIndicator(status = connectionStatus)
     }
 
     Spacer(modifier = Modifier.height(4.dp))
@@ -180,14 +169,10 @@ fun AgentDashboardScreen(
         .padding(14.dp),
       verticalAlignment = Alignment.CenterVertically
     ) {
-      Image(
-        painter = painterResource(id = R.drawable.agent_sarah_avatar_1787131767100),
-        contentDescription = agentProfile.name,
-        modifier = Modifier
-          .size(48.dp)
-          .clip(CircleShape)
-          .border(1.5.dp, SandWarm, CircleShape),
-        contentScale = ContentScale.Crop
+      PersonAvatar(
+        name = agentProfile.name,
+        size = 48.dp,
+        modifier = Modifier.border(1.5.dp, SandWarm, CircleShape)
       )
       Spacer(modifier = Modifier.width(14.dp))
       Column(modifier = Modifier.weight(1f)) {
@@ -220,7 +205,7 @@ fun AgentDashboardScreen(
           }
         }
         Text(
-          text = "${agentProfile.title} • MLS: ${agentProfile.licenseNo}",
+          text = "${agentProfile.title} • PRC Lic. ${agentProfile.licenseNo}",
           style = MaterialTheme.typography.bodySmall.copy(
             color = TaupeDark,
             fontSize = 12.sp
@@ -232,7 +217,7 @@ fun AgentDashboardScreen(
     // Role-specific privilege banner
     val rolePrivilegeNote = when {
       currentUser?.professionalRole?.contains("Broker", ignoreCase = true) == true ->
-        "Managing Broker Oversight: Full administrative approval for active agency listings, tour scheduling, and MLS agent compliance."
+        "Managing Broker Oversight: Full administrative approval for active agency listings, tour scheduling, and agent compliance."
       currentUser?.professionalRole?.contains("Admin", ignoreCase = true) == true ->
         "Brokerage Administration: Lead routing, portal access governance, client inquiry dispatch, and analytics."
       currentUser?.professionalRole?.contains("Property Manager", ignoreCase = true) == true ->
@@ -264,7 +249,7 @@ fun AgentDashboardScreen(
           text = rolePrivilegeNote,
           style = MaterialTheme.typography.bodySmall.copy(
             color = NaturalDark,
-            fontSize = 11.5.sp,
+            fontSize = 12.sp,
             lineHeight = 16.sp
           )
         )
@@ -732,7 +717,7 @@ fun AgentDashboardScreen(
 
     Spacer(modifier = Modifier.height(24.dp))
 
-    // MANAGE SANCTUARIES & LISTINGS SECTION
+    // MANAGE LISTINGS SECTION
     Row(
       modifier = Modifier.fillMaxWidth(),
       horizontalArrangement = Arrangement.SpaceBetween,
@@ -740,7 +725,7 @@ fun AgentDashboardScreen(
     ) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
-          text = "SANCTUARIES & LISTINGS",
+          text = "MY LISTINGS",
           style = MaterialTheme.typography.labelMedium.copy(
             fontWeight = FontWeight.Bold,
             color = TaupeMuted,
@@ -787,7 +772,7 @@ fun AgentDashboardScreen(
           )
           Spacer(modifier = Modifier.width(4.dp))
           Text(
-            text = "Publish Sanctuary",
+            text = "Publish Listing",
             style = MaterialTheme.typography.labelSmall.copy(
               fontWeight = FontWeight.Bold,
               color = ForestGreen,
@@ -814,7 +799,7 @@ fun AgentDashboardScreen(
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
           Text(
-            text = "No Sanctuaries Published Yet",
+            text = "No Listings Published Yet",
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
               color = NaturalDark
@@ -837,7 +822,7 @@ fun AgentDashboardScreen(
           ) {
             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
             Spacer(modifier = Modifier.width(6.dp))
-            Text("Publish Sanctuary", fontWeight = FontWeight.Bold)
+            Text("Publish Listing", fontWeight = FontWeight.Bold)
           }
         }
       }
@@ -891,7 +876,7 @@ private fun QuickActionButton(
       text = label,
       style = MaterialTheme.typography.labelSmall.copy(
         fontWeight = FontWeight.SemiBold,
-        fontSize = 10.5.sp,
+        fontSize = 11.sp,
         color = NaturalDark
       ),
       maxLines = 1,

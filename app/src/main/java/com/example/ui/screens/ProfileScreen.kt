@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.ui.components.PersonAvatar
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -65,17 +66,12 @@ import com.example.R
 import com.example.data.model.AgentProfile
 import com.example.data.model.UserAccount
 import com.example.data.model.UserRole
-import com.example.data.remote.BackendConnectionInfo
-import com.example.data.remote.BackendConnectionState
 import com.example.data.repository.DatabaseStats
-import com.example.ui.dialogs.BackendConfigDialog
+import com.example.ui.components.ConnectionStatus
+import com.example.ui.components.ConnectionStatusIndicator
 import com.example.ui.dialogs.ChangePasswordDialog
 import com.example.ui.theme.*
 import androidx.compose.material.icons.filled.CloudSync
-import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sync
 
 @Composable
 fun ProfileScreen(
@@ -85,22 +81,19 @@ fun ProfileScreen(
   savedPropertiesCount: Int,
   upcomingViewingsCount: Int,
   databaseStats: DatabaseStats? = null,
-  backendConnectionInfo: BackendConnectionInfo? = null,
-  onTestBackendConnection: () -> Unit = {},
+  connectionStatus: ConnectionStatus = ConnectionStatus.CHECKING,
   onSyncBackend: () -> Unit = {},
-  onUpdateBackendUrl: (String) -> Unit = {},
   onOpenClientAuth: () -> Unit = {},
   onOpenAgentLogin: () -> Unit = {},
   onLogout: () -> Unit = {},
   onResetDatabase: () -> Unit = {},
   onToggleRole: () -> Unit,
   onOpenNotifications: () -> Unit,
-  onUpdatePassword: (newPassword: String) -> Unit = {},
+  onUpdatePassword: (currentPassword: String, newPassword: String) -> Unit = { _, _ -> },
   modifier: Modifier = Modifier
 ) {
   val scrollState = rememberScrollState()
   var isChangePasswordOpen by remember { mutableStateOf(false) }
-  var isBackendConfigOpen by remember { mutableStateOf(false) }
 
   Column(
     modifier = modifier
@@ -132,14 +125,10 @@ fun ProfileScreen(
           verticalAlignment = Alignment.CenterVertically
         ) {
           if (userRole == UserRole.AGENT) {
-            Image(
-              painter = painterResource(id = R.drawable.agent_sarah_avatar_1787131767100),
-              contentDescription = agentProfile.name,
-              modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .border(1.5.dp, ForestGreen, CircleShape),
-              contentScale = ContentScale.Crop
+            PersonAvatar(
+              name = agentProfile.name,
+              size = 56.dp,
+              modifier = Modifier.border(1.5.dp, ForestGreen, CircleShape)
             )
           } else {
             Box(
@@ -229,7 +218,7 @@ fun ProfileScreen(
                 .weight(1f)
                 .testTag("profile_client_login_button"),
               colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-              shape = RoundedCornerShape(10.dp)
+              shape = RoundedCornerShape(12.dp)
             ) {
               Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(16.dp))
               Spacer(modifier = Modifier.width(6.dp))
@@ -240,7 +229,7 @@ fun ProfileScreen(
               modifier = Modifier
                 .weight(1f)
                 .testTag("profile_agent_login_button"),
-              shape = RoundedCornerShape(10.dp)
+              shape = RoundedCornerShape(12.dp)
             ) {
               Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(16.dp))
               Spacer(modifier = Modifier.width(6.dp))
@@ -279,13 +268,13 @@ fun ProfileScreen(
             OutlinedButton(
               onClick = onLogout,
               modifier = Modifier.testTag("profile_logout_button"),
-              shape = RoundedCornerShape(8.dp),
+              shape = RoundedCornerShape(12.dp),
               colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB00020)),
               contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
             ) {
               Icon(Icons.Default.Logout, contentDescription = null, modifier = Modifier.size(14.dp))
               Spacer(modifier = Modifier.width(4.dp))
-              Text("Log Out", fontSize = 11.5.sp, maxLines = 1)
+              Text("Log Out", fontSize = 12.sp, maxLines = 1)
             }
           }
 
@@ -320,190 +309,123 @@ fun ProfileScreen(
 
             OutlinedButton(
               onClick = { isChangePasswordOpen = true },
-              shape = RoundedCornerShape(8.dp),
+              shape = RoundedCornerShape(12.dp),
               modifier = Modifier.testTag("profile_update_password_button"),
               contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
             ) {
               Icon(Icons.Default.Key, contentDescription = null, modifier = Modifier.size(13.dp))
               Spacer(modifier = Modifier.width(4.dp))
-              Text("Update Password", fontSize = 11.5.sp, maxLines = 1)
+              Text("Update Password", fontSize = 12.sp, maxLines = 1)
             }
           }
         }
       }
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+    if (userRole == UserRole.AGENT) {
+      Spacer(modifier = Modifier.height(16.dp))
 
-    // Dedicated Agent Portal Login Card (As requested: "For the agent, it is on the profile where you can select login agent")
-    Card(
-      modifier = Modifier
-        .fillMaxWidth()
-        .testTag("agent_portal_section_card"),
-      shape = RoundedCornerShape(16.dp),
-      colors = CardDefaults.cardColors(
-        containerColor = if (userRole == UserRole.AGENT) ForestGreen.copy(alpha = 0.08f) else Color.White
-      ),
-      border = androidx.compose.foundation.BorderStroke(
-        1.dp,
-        if (userRole == UserRole.AGENT) ForestGreen.copy(alpha = 0.4f) else SandWarm
-      )
-    ) {
-      Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
-          ) {
-            Box(
-              modifier = Modifier
-                .size(38.dp)
-                .background(ForestGreen, RoundedCornerShape(10.dp)),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(
-                imageVector = Icons.Default.Badge,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-              )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f, fill = false)) {
-              Text(
-                text = "Licensed Agent Portal",
-                style = MaterialTheme.typography.titleSmall.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = NaturalDark
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-              Text(
-                text = if (userRole == UserRole.AGENT) "${currentUser?.professionalRole ?: "Licensed Agent"} • MLS: ${agentProfile.licenseNo}" else "Broker, Agent & Admin Access",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  color = TaupeDark,
-                  fontSize = 11.5.sp
-                ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-              )
-            }
-          }
-
-          if (userRole == UserRole.AGENT) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-              text = "CONNECTED",
-              style = MaterialTheme.typography.labelSmall.copy(
-                color = ForestGreen,
-                fontWeight = FontWeight.Bold,
-                fontSize = 10.5.sp
-              ),
-              maxLines = 1
-            )
-          }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        if (userRole == UserRole.AGENT) {
-          Text(
-            text = "You are currently logged in with verified privileges as ${currentUser?.professionalRole ?: "Licensed Agent"} to publish listings, manage tour schedules, and review buyer leads.",
-            style = MaterialTheme.typography.bodySmall.copy(color = NaturalDark, fontSize = 12.sp)
-          )
-        } else {
-          Text(
-            text = "Are you a licensed real estate agent, broker, or agency admin? Sign in or register your role to access professional property management.",
-            style = MaterialTheme.typography.bodySmall.copy(color = TaupeDark, fontSize = 12.sp)
-          )
-          Spacer(modifier = Modifier.height(12.dp))
-          Button(
-            onClick = onOpenAgentLogin,
-            modifier = Modifier
-              .fillMaxWidth()
-              .testTag("select_login_agent_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-            shape = RoundedCornerShape(10.dp)
-          ) {
-            Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Select Login Agent / Join Portal", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-          }
-        }
-      }
-    }
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    // Quick Portal Mode Switch (for testing or toggling roles)
-    Card(
-      modifier = Modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(16.dp),
-      colors = CardDefaults.cardColors(containerColor = Color.White),
-      border = androidx.compose.foundation.BorderStroke(1.dp, SandWarm)
-    ) {
-      Row(
+      // Agent Portal card: agents only. Clients never see it; agents sign in from the Welcome screen.
+      Card(
         modifier = Modifier
           .fillMaxWidth()
-          .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+          .testTag("agent_portal_section_card"),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+          containerColor = if (userRole == UserRole.AGENT) ForestGreen.copy(alpha = 0.08f) else Color.White
+        ),
+        border = androidx.compose.foundation.BorderStroke(
+          1.dp,
+          if (userRole == UserRole.AGENT) ForestGreen.copy(alpha = 0.4f) else SandWarm
+        )
       ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          modifier = Modifier.weight(1f)
-        ) {
-          Box(
-            modifier = Modifier
-              .size(38.dp)
-              .background(if (userRole == UserRole.AGENT) ForestGreen else SandMuted, RoundedCornerShape(10.dp)),
-            contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(16.dp)) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
           ) {
-            Icon(
-              imageVector = if (userRole == UserRole.AGENT) Icons.Default.BusinessCenter else Icons.Default.Person,
-              contentDescription = null,
-              tint = if (userRole == UserRole.AGENT) Color.White else NaturalDark,
-              modifier = Modifier.size(20.dp)
-            )
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier.weight(1f)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(38.dp)
+                  .background(ForestGreen, RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Badge,
+                  contentDescription = null,
+                  tint = Color.White,
+                  modifier = Modifier.size(20.dp)
+                )
+              }
+              Spacer(modifier = Modifier.width(12.dp))
+              Column(modifier = Modifier.weight(1f, fill = false)) {
+                Text(
+                  text = "Licensed Agent Portal",
+                  style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = NaturalDark
+                  ),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                  text = if (userRole == UserRole.AGENT) "${currentUser?.professionalRole ?: "Licensed Agent"} • PRC Lic. ${agentProfile.licenseNo}" else "Broker, Agent & Admin Access",
+                  style = MaterialTheme.typography.bodySmall.copy(
+                    color = TaupeDark,
+                    fontSize = 12.sp
+                  ),
+                  maxLines = 1,
+                  overflow = TextOverflow.Ellipsis
+                )
+              }
+            }
+
+            if (userRole == UserRole.AGENT) {
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = "CONNECTED",
+                style = MaterialTheme.typography.labelSmall.copy(
+                  color = ForestGreen,
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 11.sp
+                ),
+                maxLines = 1
+              )
+            }
           }
-          Spacer(modifier = Modifier.width(12.dp))
-          Column(modifier = Modifier.weight(1f, fill = false)) {
+
+          Spacer(modifier = Modifier.height(10.dp))
+
+          if (userRole == UserRole.AGENT) {
             Text(
-              text = if (userRole == UserRole.AGENT) "Agent Portal Active" else "Buyer Explorer Mode",
-              style = MaterialTheme.typography.titleSmall.copy(
-                fontWeight = FontWeight.Bold,
-                color = NaturalDark
-              ),
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis
+              text = "You are currently logged in with verified privileges as ${currentUser?.professionalRole ?: "Licensed Agent"} to publish listings, manage tour schedules, and review buyer leads.",
+              style = MaterialTheme.typography.bodySmall.copy(color = NaturalDark, fontSize = 12.sp)
             )
+          } else {
             Text(
-              text = if (userRole == UserRole.AGENT) "Tap switch to view as client" else "Tap switch to preview agent view",
-              style = MaterialTheme.typography.bodySmall.copy(
-                color = TaupeDark,
-                fontSize = 11.5.sp
-              ),
-              maxLines = 1,
-              overflow = TextOverflow.Ellipsis
+              text = "Are you a licensed real estate agent, broker, or agency admin? Sign in or register your role to access professional property management.",
+              style = MaterialTheme.typography.bodySmall.copy(color = TaupeDark, fontSize = 12.sp)
             )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+              onClick = onOpenAgentLogin,
+              modifier = Modifier
+                .fillMaxWidth()
+                .testTag("select_login_agent_button"),
+              colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+              shape = RoundedCornerShape(12.dp)
+            ) {
+              Icon(Icons.Default.Badge, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(8.dp))
+              Text("Select Login Agent / Join Portal", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
           }
         }
-        Spacer(modifier = Modifier.width(8.dp))
-
-        Switch(
-          checked = userRole == UserRole.AGENT,
-          onCheckedChange = { onToggleRole() },
-          colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White,
-            checkedTrackColor = ForestGreen
-          ),
-          modifier = Modifier.testTag("role_switch_toggle")
-        )
       }
     }
 
@@ -605,23 +527,6 @@ fun ProfileScreen(
           horizontalArrangement = Arrangement.SpaceBetween
         ) {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Security, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text("Verified MLS® Integration", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, color = NaturalDark))
-          }
-          Text("Active", style = MaterialTheme.typography.labelSmall.copy(color = ForestGreen, fontWeight = FontWeight.Bold))
-        }
-
-        HorizontalDivider(color = SandWarm, thickness = 1.dp)
-
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Info, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(20.dp))
             Spacer(modifier = Modifier.width(12.dp))
             Text("App Version", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, color = NaturalDark))
@@ -633,9 +538,9 @@ fun ProfileScreen(
 
     Spacer(modifier = Modifier.height(20.dp))
 
-    // PHP & PostgreSQL (XAMPP) Backend Section
+    // Connection status (no server details are shown)
     Text(
-      text = "PHP & POSTGRESQL BACKEND (XAMPP)",
+      text = "CONNECTION",
       style = MaterialTheme.typography.labelMedium.copy(
         fontWeight = FontWeight.Bold,
         color = TaupeMuted,
@@ -649,289 +554,51 @@ fun ProfileScreen(
     Card(
       modifier = Modifier
         .fillMaxWidth()
-        .testTag("backend_xampp_card"),
+        .testTag("connection_card"),
       shape = RoundedCornerShape(14.dp),
       colors = CardDefaults.cardColors(containerColor = Color.White),
       border = androidx.compose.foundation.BorderStroke(1.dp, SandWarm)
     ) {
-      Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-              modifier = Modifier
-                .size(38.dp)
-                .background(ForestGreen.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(
-                imageVector = Icons.Default.Dns,
-                contentDescription = null,
-                tint = ForestGreen,
-                modifier = Modifier.size(20.dp)
-              )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-              Text(
-                text = "PHP REST API • PostgreSQL",
-                style = MaterialTheme.typography.titleSmall.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = NaturalDark
-                )
-              )
-              Text(
-                text = "XAMPP Apache Server",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  color = TaupeDark,
-                  fontSize = 11.5.sp
-                )
-              )
-            }
-          }
-
-          val isOnline = backendConnectionInfo?.state == BackendConnectionState.CONNECTED
-          val isConnecting = backendConnectionInfo?.state == BackendConnectionState.CONNECTING
-
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-              .background(
-                if (isOnline) ForestGreen.copy(alpha = 0.12f)
-                else if (isConnecting) AmberPending.copy(alpha = 0.15f)
-                else SandMuted,
-                RoundedCornerShape(6.dp)
-              )
-              .padding(horizontal = 8.dp, vertical = 4.dp)
-          ) {
-            Icon(
-              imageVector = if (isOnline) Icons.Default.CheckCircle else if (isConnecting) Icons.Default.Sync else Icons.Default.Storage,
-              contentDescription = null,
-              tint = if (isOnline) ForestGreen else if (isConnecting) AmberPending else TaupeDark,
-              modifier = Modifier.size(13.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-              text = if (isOnline) "Postgres Online" else if (isConnecting) "Connecting..." else "Local Mode",
-              style = MaterialTheme.typography.labelSmall.copy(
-                color = if (isOnline) ForestGreen else if (isConnecting) AmberPending else TaupeDark,
-                fontWeight = FontWeight.Bold
-              )
-            )
-          }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Backend URL display
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+      ) {
         Box(
           modifier = Modifier
-            .fillMaxWidth()
-            .background(NaturalBg, RoundedCornerShape(8.dp))
-            .padding(10.dp)
+            .size(40.dp)
+            .background(ForestGreen.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
+          contentAlignment = Alignment.Center
         ) {
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Column(modifier = Modifier.weight(1f)) {
-              Text(
-                text = "Active Endpoint",
-                style = MaterialTheme.typography.labelSmall.copy(color = TaupeDark, fontSize = 10.sp)
-              )
-              Text(
-                text = backendConnectionInfo?.backendUrl ?: "http://10.0.2.2/estateflow-backend/api/",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  fontWeight = FontWeight.SemiBold,
-                  color = NaturalDark,
-                  fontSize = 11.5.sp
-                )
-              )
-            }
-            OutlinedButton(
-              onClick = { isBackendConfigOpen = true },
-              shape = RoundedCornerShape(6.dp),
-              modifier = Modifier.testTag("configure_backend_button")
-            ) {
-              Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(12.dp))
-              Spacer(modifier = Modifier.width(4.dp))
-              Text("Change", fontSize = 10.5.sp)
-            }
-          }
-        }
-
-        if (backendConnectionInfo?.errorMessage != null) {
-          Spacer(modifier = Modifier.height(8.dp))
-          Row(
-            modifier = Modifier
-              .fillMaxWidth()
-              .background(Color(0xFFFFF0F0), RoundedCornerShape(6.dp))
-              .padding(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-          ) {
-            Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = Color(0xFFB00020), modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-              text = backendConnectionInfo.errorMessage ?: "Cannot reach PHP server. Verify XAMPP Apache is running.",
-              style = MaterialTheme.typography.bodySmall.copy(color = Color(0xFFB00020), fontSize = 10.5.sp)
-            )
-          }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Action Buttons: Ping test & Sync
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          OutlinedButton(
-            onClick = onTestBackendConnection,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("test_backend_connection_button"),
-            shape = RoundedCornerShape(8.dp)
-          ) {
-            Icon(Icons.Default.Dns, contentDescription = null, modifier = Modifier.size(14.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Test Connection", fontSize = 11.5.sp)
-          }
-
-          Button(
-            onClick = onSyncBackend,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("sync_backend_button"),
-            colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-            shape = RoundedCornerShape(8.dp)
-          ) {
-            Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(15.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Sync with Postgres", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-          }
-        }
-      }
-    }
-
-    Spacer(modifier = Modifier.height(20.dp))
-
-    // Local Room Database Backend Section
-    Text(
-      text = "LOCAL ROOM SQLITE CACHE",
-      style = MaterialTheme.typography.labelMedium.copy(
-        fontWeight = FontWeight.Bold,
-        color = TaupeMuted,
-        fontSize = 11.sp,
-        letterSpacing = 1.sp
-      )
-    )
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Card(
-      modifier = Modifier.fillMaxWidth(),
-      shape = RoundedCornerShape(14.dp),
-      colors = CardDefaults.cardColors(containerColor = Color.White),
-      border = androidx.compose.foundation.BorderStroke(1.dp, SandWarm)
-    ) {
-      Column(modifier = Modifier.padding(16.dp)) {
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Storage, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(22.dp))
-            Spacer(modifier = Modifier.width(10.dp))
-            Column {
-              Text(
-                text = "Room SQLite Database",
-                style = MaterialTheme.typography.titleSmall.copy(
-                  fontWeight = FontWeight.Bold,
-                  color = NaturalDark
-                )
-              )
-              Text(
-                text = "Local offline persistence engine",
-                style = MaterialTheme.typography.bodySmall.copy(
-                  color = TaupeDark,
-                  fontSize = 11.5.sp
-                )
-              )
-            }
-          }
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-              .background(ForestGreen.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
-              .padding(horizontal = 8.dp, vertical = 4.dp)
-          ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(13.dp))
-            Spacer(modifier = Modifier.width(4.dp))
-            Text("Active", style = MaterialTheme.typography.labelSmall.copy(color = ForestGreen, fontWeight = FontWeight.Bold))
-          }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Record counters
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .background(NaturalBg, RoundedCornerShape(10.dp))
-            .padding(vertical = 10.dp, horizontal = 12.dp),
-          horizontalArrangement = Arrangement.SpaceAround
-        ) {
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-              text = "${databaseStats?.propertiesCount ?: 0}",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = ForestGreen)
-            )
-            Text("Properties", style = MaterialTheme.typography.labelSmall.copy(color = TaupeDark, fontSize = 10.sp))
-          }
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-              text = "${databaseStats?.appointmentsCount ?: 0}",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = ForestGreen)
-            )
-            Text("Viewings", style = MaterialTheme.typography.labelSmall.copy(color = TaupeDark, fontSize = 10.sp))
-          }
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-              text = "${databaseStats?.inquiriesCount ?: 0}",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = ForestGreen)
-            )
-            Text("Inquiries", style = MaterialTheme.typography.labelSmall.copy(color = TaupeDark, fontSize = 10.sp))
-          }
-          Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-              text = "${databaseStats?.notificationsCount ?: 0}",
-              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = ForestGreen)
-            )
-            Text("Alerts", style = MaterialTheme.typography.labelSmall.copy(color = TaupeDark, fontSize = 10.sp))
-          }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onResetDatabase() }
-            .padding(vertical = 4.dp),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.Center
-        ) {
-          Icon(Icons.Default.Refresh, contentDescription = null, tint = TaupeDark, modifier = Modifier.size(16.dp))
-          Spacer(modifier = Modifier.width(6.dp))
-          Text(
-            text = "Clear Data & Reset to Clean Slate",
-            style = MaterialTheme.typography.labelMedium.copy(color = TaupeDark, fontWeight = FontWeight.Medium)
+          Icon(
+            imageVector = Icons.Default.CloudSync,
+            contentDescription = null,
+            tint = ForestGreen,
+            modifier = Modifier.size(20.dp)
           )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+          Text(
+            text = "Estateflow Cloud",
+            style = MaterialTheme.typography.titleSmall.copy(
+              fontWeight = FontWeight.Bold,
+              color = NaturalDark
+            )
+          )
+          Spacer(modifier = Modifier.height(2.dp))
+          ConnectionStatusIndicator(status = connectionStatus)
+        }
+        Button(
+          onClick = onSyncBackend,
+          modifier = Modifier.testTag("sync_backend_button"),
+          colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
+          shape = RoundedCornerShape(12.dp)
+        ) {
+          Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+          Spacer(modifier = Modifier.width(6.dp))
+          Text("Sync now", style = MaterialTheme.typography.labelLarge)
         }
       }
     }
@@ -944,20 +611,10 @@ fun ProfileScreen(
       isOpen = isChangePasswordOpen,
       userEmail = currentUser.email,
       onDismiss = { isChangePasswordOpen = false },
-      onPasswordChanged = { newPass ->
-        onUpdatePassword(newPass)
+      onPasswordChanged = { currentPass, newPass ->
+        onUpdatePassword(currentPass, newPass)
         isChangePasswordOpen = false
       }
     )
   }
-
-  BackendConfigDialog(
-    isOpen = isBackendConfigOpen,
-    currentUrl = backendConnectionInfo?.backendUrl ?: "http://10.0.2.2/estateflow-backend/api/",
-    onDismiss = { isBackendConfigOpen = false },
-    onSaveUrl = { newUrl ->
-      onUpdateBackendUrl(newUrl)
-      isBackendConfigOpen = false
-    }
-  )
 }

@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.components.initialsOf
+import com.example.ui.components.hasDemoAgentPhoto
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -132,9 +134,9 @@ fun MessagesScreen(
 
         Text(
           text = if (userRole == UserRole.AGENT) "Client Inquiries" else "Agent Conversations",
-          style = MaterialTheme.typography.titleLarge.copy(
+          style = MaterialTheme.typography.headlineSmall.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
+            fontSize = 22.sp,
             color = NaturalDark
           )
         )
@@ -179,7 +181,7 @@ fun MessagesScreen(
                   .border(1.dp, SandWarm, CircleShape),
                 contentAlignment = Alignment.Center
               ) {
-                if (displayName.contains("Sarah", ignoreCase = true)) {
+                if (hasDemoAgentPhoto(displayName)) {
                   Image(
                     painter = painterResource(id = R.drawable.agent_sarah_avatar_1787131767100),
                     contentDescription = displayName,
@@ -188,7 +190,7 @@ fun MessagesScreen(
                   )
                 } else {
                   Text(
-                    text = displayName.take(1).uppercase(),
+                    text = initialsOf(displayName),
                     style = MaterialTheme.typography.titleMedium.copy(
                       fontWeight = FontWeight.Bold,
                       color = ForestGreen
@@ -210,14 +212,14 @@ fun MessagesScreen(
                     style = MaterialTheme.typography.bodyMedium.copy(
                       fontWeight = if (inq.isUnread) FontWeight.Bold else FontWeight.SemiBold,
                       color = NaturalDark,
-                      fontSize = 14.5.sp
+                      fontSize = 15.sp
                     )
                   )
                   Text(
                     text = inq.timeAgo,
                     style = MaterialTheme.typography.labelSmall.copy(
                       color = TaupeMuted,
-                      fontSize = 10.5.sp
+                      fontSize = 11.sp
                     )
                   )
                 }
@@ -229,7 +231,7 @@ fun MessagesScreen(
                   style = MaterialTheme.typography.bodySmall.copy(
                     color = ForestGreen,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 11.5.sp
+                    fontSize = 12.sp
                   ),
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis
@@ -242,7 +244,7 @@ fun MessagesScreen(
                   style = MaterialTheme.typography.bodySmall.copy(
                     color = if (inq.isUnread) NaturalDark else TaupeDark,
                     fontWeight = if (inq.isUnread) FontWeight.Medium else FontWeight.Normal,
-                    fontSize = 12.5.sp
+                    fontSize = 13.sp
                   ),
                   maxLines = 1,
                   overflow = TextOverflow.Ellipsis
@@ -292,7 +294,7 @@ fun MessagesScreen(
               .border(1.dp, SandWarm, CircleShape),
             contentAlignment = Alignment.Center
           ) {
-            if (headerDisplayName.contains("Sarah", ignoreCase = true)) {
+            if (hasDemoAgentPhoto(headerDisplayName)) {
               Image(
                 painter = painterResource(id = R.drawable.agent_sarah_avatar_1787131767100),
                 contentDescription = headerDisplayName,
@@ -301,7 +303,7 @@ fun MessagesScreen(
               )
             } else {
               Text(
-                text = headerDisplayName.take(1).uppercase(),
+                text = initialsOf(headerDisplayName),
                 style = MaterialTheme.typography.bodyMedium.copy(
                   fontWeight = FontWeight.Bold,
                   color = ForestGreen
@@ -375,7 +377,7 @@ fun MessagesScreen(
                   text = msg.text,
                   style = MaterialTheme.typography.bodyMedium.copy(
                     color = if (isMyMsg) Color.White else NaturalDark,
-                    fontSize = 13.5.sp
+                    fontSize = 14.sp
                   )
                 )
                 Spacer(modifier = Modifier.height(3.dp))
@@ -383,7 +385,7 @@ fun MessagesScreen(
                   text = msg.time,
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = if (isMyMsg) Color.White.copy(alpha = 0.7f) else TaupeMuted,
-                    fontSize = 9.5.sp
+                    fontSize = 10.sp
                   ),
                   modifier = Modifier.align(Alignment.End)
                 )
@@ -396,7 +398,7 @@ fun MessagesScreen(
         val quickReplies = if (userRole == UserRole.AGENT) {
           listOf(
             "Viewing is available Monday 1:30 PM",
-            "Sent strata documents to your email",
+            "Sent the floor plans to your email",
             "Yes, parking is included in the unit"
           )
         } else {
@@ -430,7 +432,7 @@ fun MessagesScreen(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelSmall.copy(
                   color = NaturalDark,
-                  fontSize = 11.5.sp
+                  fontSize = 12.sp
                 )
               )
             }

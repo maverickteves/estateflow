@@ -2,6 +2,7 @@ package com.example
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -15,16 +16,33 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.data.model.AppointmentStatus
+import com.example.ui.components.CustomEstateSnackbar
 import com.example.ui.components.EstateBottomNav
+import com.example.ui.components.toConnectionStatus
 import com.example.ui.components.EstateTopBar
 import com.example.ui.dialogs.AddPropertyDialog
 import com.example.ui.dialogs.AgentLoginDialog
@@ -45,20 +63,43 @@ import com.example.ui.screens.ProfileScreen
 import com.example.ui.screens.PropertyDetailsScreen
 import com.example.ui.screens.SavedScreen
 import com.example.ui.screens.SearchScreen
+import com.example.ui.components.SignInRequiredScreen
+import com.example.ui.screens.LoadingSplashScreen
 import com.example.ui.screens.WelcomeScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.NaturalBg
 import com.example.ui.viewmodel.EstateViewModel
 import com.example.ui.viewmodel.Screen
 import com.example.ui.viewmodel.UserRole
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+
+private const val CONNECTION_CHECK_INTERVAL_MS = 30_000L
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    enableEdgeToEdge()
+    // Always light: dark status/navigation bar icons on the app's light background,
+    // even when the phone is in dark mode.
+    enableEdgeToEdge(
+      statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+      // Android 7 can't draw dark navigation icons, so it falls back to a dim scrim there.
+      navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(0x80, 0x1b, 0x1b, 0x1b))
+    )
     setContent {
       MyApplicationTheme {
-        EstateflowApp()
+        // Show the logo for a moment on launch while the app loads underneath it.
+        var showSplash by rememberSaveable { mutableStateOf(true) }
+        LaunchedEffect(Unit) {
+          delay(1500)
+          showSplash = false
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+          EstateflowApp()
+          AnimatedVisibility(visible = showSplash, enter = fadeIn(initialAlpha = 1f), exit = fadeOut(tween(350))) {
+            LoadingSplashScreen()
+          }
+        }
       }
     }
   }
@@ -81,6 +122,31 @@ fun EstateflowApp(
   val databaseStats by viewModel.databaseStats.collectAsStateWithLifecycle()
   val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
   val backendConnectionInfo by viewModel.backendConnectionInfo.collectAsStateWithLifecycle()
+  val connectionStatus = backendConnectionInfo.toConnectionStatus()
+  val snackbarHostState = remember { SnackbarHostState() }
+  val lifecycleOwner = LocalLifecycleOwner.current
+
+  // Show confirmations posted by the ViewModel. A newer message replaces the one on screen.
+  LaunchedEffect(Unit) {
+    viewModel.feedbackEvents.collectLatest { event ->
+      val result = snackbarHostState.showSnackbar(
+        message = event.message,
+        actionLabel = event.actionLabel,
+        duration = SnackbarDuration.Short
+      )
+      if (result == SnackbarResult.ActionPerformed) event.onAction?.invoke()
+    }
+  }
+
+  // Keep the Online/Offline indicator current while the app is visible.
+  LaunchedEffect(lifecycleOwner) {
+    lifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+      while (true) {
+        delay(CONNECTION_CHECK_INTERVAL_MS)
+        viewModel.refreshConnectionStatus()
+      }
+    }
+  }
 
   // Handle hardware back button
   BackHandler(enabled = uiState.currentScreen != Screen.HOME && uiState.currentScreen != Screen.AGENT_DASHBOARD && uiState.currentScreen != Screen.WELCOME) {
@@ -98,6 +164,9 @@ fun EstateflowApp(
   Scaffold(
     modifier = Modifier.fillMaxSize(),
     containerColor = MaterialTheme.colorScheme.background,
+    snackbarHost = {
+      SnackbarHost(hostState = snackbarHostState) { data -> CustomEstateSnackbar(snackbarData = data) }
+    },
     topBar = {
       // Show top bar except on Welcome, PropertyDetails, AgentDashboard, and Notifications
       if (uiState.currentScreen != Screen.WELCOME && uiState.currentScreen != Screen.PROPERTY_DETAILS && uiState.currentScreen != Screen.AGENT_DASHBOARD && uiState.currentScreen != Screen.NOTIFICATIONS) {
@@ -105,6 +174,8 @@ fun EstateflowApp(
           title = "Estateflow",
           subtitle = null,
           userRole = uiState.userRole,
+          connectionStatus = connectionStatus,
+          agentName = agentProfile.name,
           unreadCount = unreadNotificationsCount,
           onNotificationClick = { viewModel.navigateTo(Screen.NOTIFICATIONS) },
           onFilterClick = { viewModel.openFilterSheet(true) },
@@ -118,7 +189,7 @@ fun EstateflowApp(
         EstateBottomNav(
           currentScreen = uiState.currentScreen,
           userRole = uiState.userRole,
-          unreadMessagesCount = inquiries.count { it.isUnread },
+          unreadMessagesCount = if (currentUser == null) 0 else inquiries.count { it.isUnread },
           onNavigate = { screen -> viewModel.navigateTo(screen) }
         )
       }
@@ -200,6 +271,7 @@ fun EstateflowApp(
             AgentDashboardScreen(
               agentProfile = agentProfile,
               currentUser = currentUser,
+              connectionStatus = connectionStatus,
               appointments = appointments,
               inquiries = inquiries,
               activeListingsCount = properties.size,
@@ -217,7 +289,16 @@ fun EstateflowApp(
             )
           }
 
-          Screen.SAVED -> {
+          Screen.SAVED -> if (currentUser == null) {
+            SignInRequiredScreen(
+              title = "Saved Properties",
+              icon = Icons.Default.FavoriteBorder,
+              heading = "Sign in to save homes",
+              message = "Create a free account or sign in to save properties you like and find them here anytime.",
+              onSignIn = { viewModel.openClientAuthDialog(true, prompt = "Sign in or create an account to save homes.") },
+              onExplore = { viewModel.navigateTo(Screen.HOME) }
+            )
+          } else {
             SavedScreen(
               savedProperties = savedProperties,
               onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
@@ -258,7 +339,16 @@ fun EstateflowApp(
             )
           }
 
-          Screen.MESSAGES -> {
+          Screen.MESSAGES -> if (currentUser == null) {
+            SignInRequiredScreen(
+              title = "Inbox",
+              icon = Icons.Default.ChatBubbleOutline,
+              heading = "Sign in to message an agent",
+              message = "Sign in to ask agents about a listing and keep all your conversations in one place.",
+              onSignIn = { viewModel.openClientAuthDialog(true, prompt = "Sign in or create an account to message agents.") },
+              onExplore = { viewModel.navigateTo(Screen.HOME) }
+            )
+          } else {
             MessagesScreen(
               inquiries = inquiries,
               selectedInquiry = selectedInquiry,
@@ -316,17 +406,15 @@ fun EstateflowApp(
               savedPropertiesCount = savedProperties.size,
               upcomingViewingsCount = appointments.count { it.status == AppointmentStatus.UPCOMING },
               databaseStats = databaseStats,
-              backendConnectionInfo = backendConnectionInfo,
-              onTestBackendConnection = { viewModel.testBackendConnection() },
+              connectionStatus = connectionStatus,
               onSyncBackend = { viewModel.syncWithBackend() },
-              onUpdateBackendUrl = { url -> viewModel.updateBackendUrl(url) },
               onOpenClientAuth = { viewModel.openClientAuthDialog(true) },
               onOpenAgentLogin = { viewModel.openAgentLoginDialog(true) },
               onLogout = { viewModel.logout() },
               onResetDatabase = { viewModel.resetDatabaseToDefaults() },
               onToggleRole = { viewModel.toggleUserRole() },
               onOpenNotifications = { viewModel.navigateTo(Screen.NOTIFICATIONS) },
-              onUpdatePassword = { newPass -> viewModel.updateUserPassword(newPass) }
+              onUpdatePassword = { currentPass, newPass -> viewModel.updateUserPassword(currentPass, newPass) }
             )
           }
         }
@@ -351,7 +439,8 @@ fun EstateflowApp(
       onDateSelected = { date -> viewModel.setBookingDate(date) },
       onTimeSlotSelected = { time -> viewModel.setBookingTime(time) },
       onConfirm = { viewModel.confirmBooking() },
-      onDismiss = { viewModel.openBookingDialog(false) }
+      onDismiss = { viewModel.openBookingDialog(false) },
+      isSubmitting = uiState.isSubmittingBooking
     )
   }
 
@@ -365,6 +454,7 @@ fun EstateflowApp(
   if (uiState.isAddPropertyDialogOpen) {
     AddPropertyDialog(
       onDismiss = { viewModel.openAddPropertyDialog(false) },
+      isSubmitting = uiState.isPublishingProperty,
       onAddProperty = { title, address, cityStateZip, price, isRental, beds, baths, sqft, propertyType, description, amenities, mediaUris, availableDates, availableTimeSlots ->
         viewModel.addCustomProperty(
           title, address, cityStateZip, price, isRental, beds, baths, sqft, propertyType, description, amenities, mediaUris, availableDates, availableTimeSlots
@@ -378,7 +468,8 @@ fun EstateflowApp(
       property = uiState.propertyToEdit!!,
       onDismiss = { viewModel.closeEditPropertyDialog() },
       onUpdateProperty = { updated -> viewModel.updateCustomProperty(updated) },
-      onDeleteProperty = { viewModel.openDeletePropertyDialog(uiState.propertyToEdit!!) }
+      onDeleteProperty = { viewModel.openDeletePropertyDialog(uiState.propertyToEdit!!) },
+      isSubmitting = uiState.isSavingProperty
     )
   }
 
@@ -386,7 +477,8 @@ fun EstateflowApp(
     DeletePropertyConfirmationDialog(
       property = uiState.propertyToDelete!!,
       onConfirmDelete = { viewModel.confirmDeleteProperty() },
-      onDismiss = { viewModel.closeDeletePropertyDialog() }
+      onDismiss = { viewModel.closeDeletePropertyDialog() },
+      isSubmitting = uiState.isDeletingProperty
     )
   }
 
@@ -422,11 +514,12 @@ fun EstateflowApp(
   if (uiState.isInquiryDialogOpen && uiState.selectedProperty != null) {
     InquiryDialog(
       property = uiState.selectedProperty!!,
-      initialMessage = uiState.quickInquiryMessage,
+      initialMessage = defaultInquiryMessage(uiState.selectedProperty!!.agentName),
       onSendMessage = { message: String ->
         viewModel.submitInquiry(message)
       },
-      onDismiss = { viewModel.openInquiryDialog(false) }
+      onDismiss = { viewModel.openInquiryDialog(false) },
+      isSubmitting = uiState.isSendingInquiry
     )
   }
 
@@ -436,7 +529,8 @@ fun EstateflowApp(
     onDismiss = { viewModel.openClientAuthDialog(false) },
     onLogin = { email, password -> viewModel.loginClient(email, password) },
     onSignUp = { name, email, phone, password -> viewModel.signUpClient(name, email, phone, password) },
-    authError = uiState.authError
+    authError = uiState.authError,
+    prompt = uiState.authPrompt
   )
 
   // Dedicated Agent Portal Login & Registration Dialog
@@ -449,4 +543,11 @@ fun EstateflowApp(
     },
     authError = uiState.authError
   )
+}
+
+/** Pre-filled inquiry text, addressed to the listing's own agent. */
+private fun defaultInquiryMessage(agentName: String): String {
+  val firstName = agentName.trim().substringBefore(' ')
+  val greeting = if (firstName.isNotEmpty()) "Hi $firstName" else "Hi"
+  return "$greeting, I'm very interested in this property. Could you share more details and help me schedule a viewing?"
 }

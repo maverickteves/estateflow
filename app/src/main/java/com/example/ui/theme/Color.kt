@@ -19,6 +19,7 @@ val RoseFavorite = Color(0xFFEF4444)     // Red Notification / Heart Accent
 val RoseLight = Color(0xFFFEE2E2)
 val AmberPending = Color(0xFFD97706)     // Warm Amber
 val AmberLight = Color(0xFFFEF3C7)
+val OnlineGreen = Color(0xFF22A355)     // Server connection "Online" dot
 
 // Backward-compatible semantic color tokens mapped to Natural Tones
 val Slate900 = NaturalDark

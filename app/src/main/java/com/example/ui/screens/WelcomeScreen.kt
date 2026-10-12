@@ -3,6 +3,7 @@ package com.example.ui.screens
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -48,12 +49,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.ui.theme.ForestGreen
-import com.example.ui.theme.LimeAccent
 import com.example.ui.theme.NaturalBg
 import com.example.ui.theme.NaturalDark
 import com.example.ui.theme.SandMuted
@@ -103,40 +105,16 @@ fun WelcomeScreen(
         Column(
           horizontalAlignment = Alignment.CenterHorizontally
         ) {
-          // Brand Icon Badge
-          Box(
+          // Brand logo
+          Image(
+            painter = painterResource(id = R.drawable.estateflow_logo),
+            contentDescription = "Estateflow",
             modifier = Modifier
-              .size(80.dp)
-              .clip(CircleShape)
-              .background(
-                Brush.linearGradient(
-                  colors = listOf(ForestGreen, Color(0xFF384034))
-                )
-              )
-              .border(2.dp, LimeAccent, CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.Home,
-              contentDescription = "Estateflow Logo",
-              tint = Color.White,
-              modifier = Modifier.size(42.dp)
-            )
-          }
-
-          Spacer(modifier = Modifier.height(16.dp))
-
-          // Brand Name
-          Text(
-            text = "Estateflow",
-            style = MaterialTheme.typography.displaySmall.copy(
-              fontWeight = FontWeight.ExtraBold,
-              color = ForestGreen,
-              letterSpacing = (-0.5).sp
-            )
+              .width(200.dp)
+              .testTag("welcome_logo")
           )
 
-          Spacer(modifier = Modifier.height(6.dp))
+          Spacer(modifier = Modifier.height(16.dp))
 
           Surface(
             shape = RoundedCornerShape(20.dp),
@@ -144,7 +122,7 @@ fun WelcomeScreen(
             border = androidx.compose.foundation.BorderStroke(1.dp, ForestGreen.copy(alpha = 0.25f))
           ) {
             Text(
-              text = "LUXURY REAL ESTATE SANCTUARY",
+              text = "LUXURY REAL ESTATE",
               modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
@@ -161,7 +139,7 @@ fun WelcomeScreen(
             text = "Discover premier properties, schedule private tours, and connect directly with verified real estate professionals.",
             style = MaterialTheme.typography.bodyMedium.copy(
               color = TaupeDark,
-              fontSize = 14.5.sp,
+              fontSize = 15.sp,
               lineHeight = 21.sp
             ),
             textAlign = TextAlign.Center,
@@ -190,7 +168,7 @@ fun WelcomeScreen(
           WelcomeFeatureCard(
             icon = Icons.Default.CalendarMonth,
             title = "Instant Viewing Reservation",
-            description = "Book private tour appointments seamlessly with PostgreSQL real-time calendar synchronization."
+            description = "Book private tour appointments seamlessly with real-time calendar sync."
           )
 
           WelcomeFeatureCard(
@@ -217,13 +195,13 @@ fun WelcomeScreen(
             onClick = onGetStarted,
             modifier = Modifier
               .fillMaxWidth()
-              .height(52.dp)
+              .height(48.dp)
               .testTag("welcome_get_started_button"),
             colors = ButtonDefaults.buttonColors(
               containerColor = ForestGreen,
               contentColor = Color.White
             ),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(12.dp)
           ) {
             Text(
               text = "Get Started & Explore",
@@ -247,7 +225,7 @@ fun WelcomeScreen(
               .fillMaxWidth()
               .height(48.dp)
               .testTag("welcome_agent_portal_button"),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(12.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, ForestGreen)
           ) {
             Icon(

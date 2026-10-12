@@ -16,3 +16,7 @@
 local.properties
 .env
 debug.keystore
+/.idea
+# Database dumps contain user data and password hashes
+*.sql
+*.dump

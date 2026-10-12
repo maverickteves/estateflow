@@ -87,7 +87,8 @@ fun ClientAuthDialog(
   onDismiss: () -> Unit,
   onLogin: (email: String, password: String) -> Unit,
   onSignUp: (name: String, email: String, phone: String, password: String) -> Unit,
-  authError: String? = null
+  authError: String? = null,
+  prompt: String? = null
 ) {
   if (!isOpen) return
 
@@ -100,12 +101,20 @@ fun ClientAuthDialog(
   var passwordVisible by remember { mutableStateOf(false) }
   var confirmPasswordVisible by remember { mutableStateOf(false) }
   var rememberMe by remember { mutableStateOf(true) }
+  var acceptedTerms by remember { mutableStateOf(false) }
+  var showTerms by remember { mutableStateOf(false) }
   var localError by remember { mutableStateOf<String?>(null) }
 
   Dialog(
     onDismissRequest = onDismiss,
     properties = DialogProperties(usePlatformDefaultWidth = false)
   ) {
+    if (showTerms) {
+      TermsOfServiceDialog(
+        onDismiss = { showTerms = false },
+        onAgree = { acceptedTerms = true; localError = null }
+      )
+    }
     Box(
       modifier = Modifier
         .fillMaxSize()
@@ -204,6 +213,34 @@ fun ClientAuthDialog(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        if (prompt != null && localError == null && authError == null) {
+          Surface(
+            color = ForestGreenLight,
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(bottom = 12.dp)
+              .testTag("client_auth_prompt")
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = ForestGreen,
+                modifier = Modifier.size(16.dp)
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = prompt,
+                style = MaterialTheme.typography.bodySmall.copy(color = ForestGreenDark, fontWeight = FontWeight.SemiBold)
+              )
+            }
+          }
+        }
 
         val displayError = localError ?: authError
         if (displayError != null) {
@@ -372,7 +409,7 @@ fun ClientAuthDialog(
               localError = null
             },
             label = { Text("Phone Number") },
-            placeholder = { Text("e.g. +1 (555) 019-8234") },
+            placeholder = { Text("e.g. +63 917 123 4567") },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             singleLine = true,
@@ -441,7 +478,15 @@ fun ClientAuthDialog(
           // Dynamic Password Strength Meter & Live Requirement Checklist
           PasswordStrengthMeter(password = password, confirmPassword = confirmPassword)
 
-          Spacer(modifier = Modifier.height(18.dp))
+          Spacer(modifier = Modifier.height(10.dp))
+
+          TermsAgreementRow(
+            checked = acceptedTerms,
+            onCheckedChange = { acceptedTerms = it; if (it) localError = null },
+            onOpenTerms = { showTerms = true }
+          )
+
+          Spacer(modifier = Modifier.height(12.dp))
 
           Button(
             onClick = {
@@ -449,8 +494,9 @@ fun ClientAuthDialog(
                 name.isBlank() -> localError = "Please enter your full name."
                 email.isBlank() -> localError = "Please enter your email address."
                 phone.isBlank() -> localError = "Please enter your phone number."
-                password.length < 4 -> localError = "Password must be at least 4 characters."
+                password.length < 8 -> localError = "Password must be at least 8 characters."
                 password != confirmPassword -> localError = "Passwords do not match. Please re-enter your password to confirm."
+                !acceptedTerms -> localError = "Please agree to the Terms of Service to create an account."
                 else -> onSignUp(name, email, phone, password)
               }
             },
@@ -496,6 +542,8 @@ fun AgentLoginDialog(
   var regPasswordVisible by remember { mutableStateOf(false) }
   var regConfirmPasswordVisible by remember { mutableStateOf(false) }
   var rememberAgentDevice by remember { mutableStateOf(true) }
+  var regAcceptedTerms by remember { mutableStateOf(false) }
+  var showTerms by remember { mutableStateOf(false) }
 
   var localError by remember { mutableStateOf<String?>(null) }
 
@@ -503,6 +551,12 @@ fun AgentLoginDialog(
     onDismissRequest = onDismiss,
     properties = DialogProperties(usePlatformDefaultWidth = false)
   ) {
+    if (showTerms) {
+      TermsOfServiceDialog(
+        onDismiss = { showTerms = false },
+        onAgree = { regAcceptedTerms = true; localError = null }
+      )
+    }
     Box(
       modifier = Modifier
         .fillMaxSize()
@@ -637,7 +691,7 @@ fun AgentLoginDialog(
         if (selectedTab == 0) {
           // --- AGENT SIGN IN TAB ---
           Text(
-            text = "Sign in with your agent email or MLS license number to manage active listings, approve tour appointments, and reply to client inquiries.",
+            text = "Sign in with your agent email or PRC license number to manage active listings, approve tour appointments, and reply to client inquiries.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
           )
@@ -651,7 +705,7 @@ fun AgentLoginDialog(
               localError = null
             },
             label = { Text("Agent Email or License #") },
-            placeholder = { Text("e.g. sarah.jenkins@estateflow.com or RE-94821-BC") },
+            placeholder = { Text("e.g. sarah.jenkins@estateflow.com or PRC-REB-0012345") },
             leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
             singleLine = true,
             modifier = Modifier
@@ -705,7 +759,7 @@ fun AgentLoginDialog(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = "Remember MLS license on this device",
+              text = "Remember license number on this device",
               style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurface, fontSize = 12.sp)
             )
           }
@@ -715,7 +769,7 @@ fun AgentLoginDialog(
           Button(
             onClick = {
               when {
-                emailOrLicense.isBlank() -> localError = "Please enter your agent email or MLS license number."
+                emailOrLicense.isBlank() -> localError = "Please enter your agent email or PRC license number."
                 password.length < 4 -> localError = "Password must be at least 4 characters."
                 else -> onLoginAgent(emailOrLicense, password)
               }
@@ -800,7 +854,7 @@ fun AgentLoginDialog(
               localError = null
             },
             label = { Text("Realtor ID (License #)") },
-            placeholder = { Text("e.g. RE-77291-BC or BK-90412") },
+            placeholder = { Text("e.g. PRC-REB-0012345") },
             leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
             singleLine = true,
             modifier = Modifier
@@ -872,7 +926,15 @@ fun AgentLoginDialog(
           // Dynamic Password Strength Meter & Live Requirement Checklist for Agents
           PasswordStrengthMeter(password = regPassword, confirmPassword = regConfirmPassword)
 
-          Spacer(modifier = Modifier.height(18.dp))
+          Spacer(modifier = Modifier.height(10.dp))
+
+          TermsAgreementRow(
+            checked = regAcceptedTerms,
+            onCheckedChange = { regAcceptedTerms = it; if (it) localError = null },
+            onOpenTerms = { showTerms = true }
+          )
+
+          Spacer(modifier = Modifier.height(12.dp))
 
           Button(
             onClick = {
@@ -880,8 +942,9 @@ fun AgentLoginDialog(
                 regName.isBlank() -> localError = "Please enter your legal name."
                 regEmail.isBlank() -> localError = "Please enter your professional agent email."
                 regLicense.isBlank() -> localError = "Please enter your Realtor ID / License number."
-                regPassword.length < 4 -> localError = "Password must be at least 4 characters."
+                regPassword.length < 8 -> localError = "Password must be at least 8 characters."
                 regPassword != regConfirmPassword -> localError = "Passwords do not match. Please re-enter your password to confirm."
+                !regAcceptedTerms -> localError = "Please agree to the Terms of Service to register."
                 else -> onSignUpAgent(
                   regName,
                   regEmail,
@@ -993,7 +1056,7 @@ fun PasswordStrengthMeter(
             style = MaterialTheme.typography.labelSmall.copy(
               color = if (isMatch) ForestGreen else Color(0xFFBA1A1A),
               fontWeight = FontWeight.Bold,
-              fontSize = 10.5.sp
+              fontSize = 11.sp
             )
           )
         }
@@ -1069,7 +1132,7 @@ fun ChangePasswordDialog(
   isOpen: Boolean,
   userEmail: String,
   onDismiss: () -> Unit,
-  onPasswordChanged: (newPassword: String) -> Unit
+  onPasswordChanged: (currentPassword: String, newPassword: String) -> Unit
 ) {
   if (!isOpen) return
 
@@ -1132,7 +1195,7 @@ fun ChangePasswordDialog(
               )
               Text(
                 text = "Update credentials",
-                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.5.sp)
+                style = MaterialTheme.typography.bodySmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
               )
             }
           }
@@ -1164,9 +1227,9 @@ fun ChangePasswordDialog(
           Spacer(modifier = Modifier.height(16.dp))
           Button(
             onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().height(46.dp),
+            modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(12.dp)
           ) {
             Text("Done", fontWeight = FontWeight.Bold)
           }
@@ -1270,17 +1333,17 @@ fun ChangePasswordDialog(
             onClick = {
               when {
                 currentPassword.isBlank() -> localError = "Please enter your current password."
-                newPassword.length < 4 -> localError = "New password must be at least 4 characters."
+                newPassword.length < 8 -> localError = "New password must be at least 8 characters."
                 newPassword != confirmNewPassword -> localError = "Passwords do not match. Please re-enter your password to confirm."
                 else -> {
-                  onPasswordChanged(newPassword)
+                  onPasswordChanged(currentPassword, newPassword)
                   isSuccess = true
                 }
               }
             },
             modifier = Modifier.fillMaxWidth().height(48.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ForestGreen),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(12.dp)
           ) {
             Text("Update & Save Password", fontWeight = FontWeight.Bold)
           }

@@ -116,10 +116,10 @@ fun NotificationsScreen(
           ) {
             Text(
               text = "Notifications",
-              style = MaterialTheme.typography.titleLarge.copy(
+              style = MaterialTheme.typography.headlineSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = NaturalDark,
-                fontSize = 20.sp
+                fontSize = 22.sp
               )
             )
 
@@ -144,7 +144,7 @@ fun NotificationsScreen(
             text = "Activity updates and appointment logs",
             style = MaterialTheme.typography.bodySmall.copy(
               color = TaupeDark,
-              fontSize = 11.5.sp
+              fontSize = 12.sp
             )
           )
         }
@@ -355,7 +355,7 @@ fun NotificationsScreen(
                   text = notif.timestampFormatted,
                   style = MaterialTheme.typography.labelSmall.copy(
                     color = TaupeMuted,
-                    fontSize = 10.5.sp
+                    fontSize = 11.sp
                   )
                 )
               }
@@ -366,7 +366,7 @@ fun NotificationsScreen(
                 text = notif.message,
                 style = MaterialTheme.typography.bodySmall.copy(
                   color = if (!notif.isRead) NaturalDark else TaupeDark,
-                  fontSize = 12.5.sp,
+                  fontSize = 13.sp,
                   lineHeight = 17.sp
                 )
               )

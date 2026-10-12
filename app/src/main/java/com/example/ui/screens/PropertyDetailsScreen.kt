@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import com.example.ui.components.PersonAvatar
 import android.content.Intent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -171,7 +172,7 @@ fun PropertyDetailsScreen(
           ) {
             Icon(
               imageVector = Icons.Default.Edit,
-              contentDescription = "Edit Sanctuary",
+              contentDescription = "Edit Listing",
               tint = ForestGreen,
               modifier = Modifier.size(20.dp)
             )
@@ -185,7 +186,7 @@ fun PropertyDetailsScreen(
           ) {
             Icon(
               imageVector = Icons.Default.DeleteOutline,
-              contentDescription = "Delete Sanctuary",
+              contentDescription = "Delete Listing",
               tint = RoseFavorite,
               modifier = Modifier.size(20.dp)
             )
@@ -238,7 +239,7 @@ fun PropertyDetailsScreen(
         text = property.title,
         style = MaterialTheme.typography.titleLarge.copy(
           fontWeight = FontWeight.Bold,
-          fontSize = 21.sp,
+          fontSize = 22.sp,
           color = NaturalDark
         )
       )
@@ -514,7 +515,7 @@ fun PropertyDetailsScreen(
         text = property.description,
         style = MaterialTheme.typography.bodyMedium.copy(
           color = TaupeDark,
-          fontSize = 13.5.sp,
+          fontSize = 14.sp,
           lineHeight = 20.sp
         )
       )
@@ -679,14 +680,10 @@ fun PropertyDetailsScreen(
           modifier = Modifier.padding(14.dp),
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Image(
-            painter = painterResource(id = R.drawable.agent_sarah_avatar_1787131767100),
-            contentDescription = property.agentName,
-            modifier = Modifier
-              .size(46.dp)
-              .clip(CircleShape)
-              .border(1.dp, SandWarm, CircleShape),
-            contentScale = ContentScale.Crop
+          PersonAvatar(
+            name = property.agentName,
+            size = 46.dp,
+            modifier = Modifier.border(1.dp, SandWarm, CircleShape)
           )
           Spacer(modifier = Modifier.width(12.dp))
           Column(modifier = Modifier.weight(1f)) {
@@ -701,7 +698,7 @@ fun PropertyDetailsScreen(
               text = property.agentTitle,
               style = MaterialTheme.typography.bodySmall.copy(
                 color = TaupeDark,
-                fontSize = 11.5.sp
+                fontSize = 12.sp
               )
             )
           }
@@ -730,9 +727,9 @@ fun PropertyDetailsScreen(
         onClick = onBookAppointmentClick,
         modifier = Modifier
           .fillMaxWidth()
-          .height(52.dp)
+          .height(48.dp)
           .testTag("book_viewing_appointment_button"),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
       ) {
         Text(
@@ -754,7 +751,7 @@ fun PropertyDetailsScreen(
           .fillMaxWidth()
           .height(48.dp)
           .testTag("send_inquiry_button"),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, SandWarm),
         colors = ButtonDefaults.outlinedButtonColors(contentColor = NaturalDark)
       ) {
@@ -778,7 +775,7 @@ fun PropertyDetailsScreen(
         ) {
           Column(modifier = Modifier.padding(16.dp)) {
             Text(
-              text = "SANCTUARY MANAGEMENT",
+              text = "LISTING MANAGEMENT",
               style = MaterialTheme.typography.labelSmall.copy(
                 fontWeight = FontWeight.Bold,
                 color = TaupeMuted,
@@ -798,7 +795,7 @@ fun PropertyDetailsScreen(
                     .weight(1f)
                     .height(44.dp)
                     .testTag("manage_edit_property_button"),
-                  shape = RoundedCornerShape(10.dp),
+                  shape = RoundedCornerShape(12.dp),
                   border = androidx.compose.foundation.BorderStroke(1.dp, ForestGreen),
                   colors = ButtonDefaults.outlinedButtonColors(contentColor = ForestGreen)
                 ) {
@@ -815,7 +812,7 @@ fun PropertyDetailsScreen(
                     .weight(1f)
                     .height(44.dp)
                     .testTag("manage_delete_property_button"),
-                  shape = RoundedCornerShape(10.dp),
+                  shape = RoundedCornerShape(12.dp),
                   border = androidx.compose.foundation.BorderStroke(1.dp, RoseFavorite),
                   colors = ButtonDefaults.outlinedButtonColors(contentColor = RoseFavorite)
                 ) {

@@ -38,6 +38,8 @@ android {
 
   buildTypes {
     release {
+      // Plain-HTTP backends (e.g. a LAN XAMPP server) are for local development only.
+      manifestPlaceholders["usesCleartextTraffic"] = false
       isCrunchPngs = false
       isMinifyEnabled = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -47,6 +49,7 @@ android {
       }
     }
     debug {
+      manifestPlaceholders["usesCleartextTraffic"] = true
       val debugKeystore = file("${rootDir}/debug.keystore")
       if (debugKeystore.exists()) {
         signingConfig = signingConfigs.getByName("debugConfig")

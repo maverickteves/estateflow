@@ -1,5 +1,6 @@
 package com.example.ui.viewmodel
 
+import com.example.data.model.upcomingViewingDates
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -83,15 +84,16 @@ data class EstateUiState(
   val isAgentLoginDialogOpen: Boolean = false,
   val pendingBookingProperty: Property? = null,
   val authError: String? = null,
+  /** Friendly reason shown on the sign-in dialog, e.g. "Sign in to save homes". */
+  val authPrompt: String? = null,
   val lastBookedAppointment: ViewingAppointment? = null,
-  val bookingSelectedDate: String = "Mon, Oct 14",
+  val bookingSelectedDate: String = upcomingViewingDates().first(),
   val bookingSelectedTime: String = "1:30 PM",
   val bookingClientName: String = "",
   val bookingClientPhone: String = "",
   val bookingClientEmail: String = "",
   val bookingNotes: String = "",
   val isInquiryDialogOpen: Boolean = false,
-  val quickInquiryMessage: String = "Hi Sarah, I'm very interested in this property. Could you provide more details about the strata fees and scheduling an in-person viewing?",
   val activeVideoUrl: String? = null,
   val activeVideoTitle: String = "",
   val isPublishingProperty: Boolean = false,
@@ -244,7 +246,7 @@ class EstateViewModel(
 
   init {
     refreshDatabaseStats()
-    syncWithBackend()
+    syncWithBackend(showProgress = false)
     viewModelScope.launch {
       currentUser.collect { user ->
         _uiState.update { state ->
@@ -307,7 +309,7 @@ class EstateViewModel(
         selectedProperty = property,
         previousScreen = it.currentScreen,
         currentScreen = Screen.PROPERTY_DETAILS,
-        bookingSelectedDate = property.availableDates.firstOrNull() ?: "Mon, Oct 14",
+        bookingSelectedDate = property.availableDates.firstOrNull() ?: upcomingViewingDates().first(),
         bookingSelectedTime = property.availableTimeSlots.firstOrNull() ?: "1:30 PM"
       )
     }
@@ -323,6 +325,16 @@ class EstateViewModel(
   }
 
   fun toggleFavorite(propertyId: String, title: String? = null) {
+    if (currentUser.value == null) {
+      _uiState.update {
+        it.copy(
+          isClientAuthDialogOpen = true,
+          authError = null,
+          authPrompt = "Sign in or create an account to save homes."
+        )
+      }
+      return
+    }
     val prop = properties.value.find { it.id == propertyId } ?: _uiState.value.selectedProperty
     val wasFavorite = prop?.isFavorite ?: false
     repository.toggleFavorite(propertyId)
@@ -513,7 +525,7 @@ class EstateViewModel(
     val validDate = if (property.availableDates.contains(currentSelectedDate)) {
       currentSelectedDate
     } else {
-      property.availableDates.firstOrNull() ?: currentSelectedDate.ifBlank { "Mon, Oct 14" }
+      property.availableDates.firstOrNull() ?: currentSelectedDate.ifBlank { upcomingViewingDates().first() }
     }
 
     val validTime = if (property.availableTimeSlots.contains(currentSelectedTime)) {
@@ -531,7 +543,8 @@ class EstateViewModel(
           selectedProperty = property,
           bookingSelectedDate = validDate,
           bookingSelectedTime = validTime,
-          authError = null
+          authError = null,
+          authPrompt = "Sign in or create an account to book a viewing."
         )
       }
     } else {
@@ -550,12 +563,13 @@ class EstateViewModel(
     }
   }
 
-  fun openClientAuthDialog(open: Boolean, continueWithBookingProperty: Property? = null) {
+  fun openClientAuthDialog(open: Boolean, continueWithBookingProperty: Property? = null, prompt: String? = null) {
     _uiState.update {
       it.copy(
         isClientAuthDialogOpen = open,
         pendingBookingProperty = continueWithBookingProperty ?: it.pendingBookingProperty,
-        authError = null
+        authError = null,
+        authPrompt = prompt
       )
     }
   }
@@ -583,6 +597,7 @@ class EstateViewModel(
           it.copy(
             isClientAuthDialogOpen = false,
             authError = null,
+            authPrompt = null,
             bookingClientName = user.name,
             bookingClientEmail = user.email,
             bookingClientPhone = user.phone,
@@ -602,8 +617,8 @@ class EstateViewModel(
   }
 
   fun signUpClient(name: String, email: String, phone: String, password: String = "") {
-    if (name.isBlank() || email.isBlank() || password.length < 4) {
-      _uiState.update { it.copy(authError = "Full name, email, and password of at least 4 characters are required.") }
+    if (name.isBlank() || email.isBlank() || password.length < 8) {
+      _uiState.update { it.copy(authError = "Full name, email, and password of at least 8 characters are required.") }
       return
     }
     viewModelScope.launch {
@@ -615,6 +630,7 @@ class EstateViewModel(
           it.copy(
             isClientAuthDialogOpen = false,
             authError = null,
+            authPrompt = null,
             bookingClientName = user.name,
             bookingClientEmail = user.email,
             bookingClientPhone = user.phone,
@@ -623,7 +639,7 @@ class EstateViewModel(
             pendingBookingProperty = null
           )
         }
-        postFeedback("Client account created & signed in as ${user.name}")
+        postFeedback("Welcome, ${user.name}! Your account is ready")
         refreshDatabaseStats()
       } else {
         _uiState.update {
@@ -645,7 +661,7 @@ class EstateViewModel(
             authError = null
           )
         }
-        postFeedback("Agent portal session activated")
+        postFeedback("Signed in to the Agent Portal")
       } else {
         _uiState.update {
           it.copy(authError = result.exceptionOrNull()?.message ?: "Invalid agent credentials")
@@ -703,7 +719,7 @@ class EstateViewModel(
           authError = null
         )
       }
-      postFeedback("Signed out of session")
+      postFeedback("Signed out")
       refreshDatabaseStats()
     }
   }
@@ -723,7 +739,8 @@ class EstateViewModel(
         _uiState.update {
           it.copy(
             isClientAuthDialogOpen = true,
-            authError = "Client account required to ask questions or send inquiries."
+            authError = null,
+            authPrompt = "Sign in or create an account to message the agent."
           )
         }
         return
@@ -766,6 +783,7 @@ class EstateViewModel(
     val state = _uiState.value
     val property = state.selectedProperty ?: return
 
+    if (state.isSubmittingBooking) return
     _uiState.update { it.copy(isSubmittingBooking = true) }
     viewModelScope.launch {
       val appt = repository.bookAppointment(
@@ -807,8 +825,9 @@ class EstateViewModel(
     val property = state.selectedProperty ?: return
     val senderName = user.name
     val senderEmail = user.email
-    val senderPhone = if (user.phone.isNotBlank()) user.phone else "+1 (555) 019-8234"
+    val senderPhone = if (user.phone.isNotBlank()) user.phone else "+63 917 555 0134"
 
+    if (state.isSendingInquiry) return
     _uiState.update { it.copy(isSendingInquiry = true) }
     viewModelScope.launch {
       val inq = repository.sendInquiry(
@@ -858,12 +877,13 @@ class EstateViewModel(
       if (!isAgent) {
         kotlinx.coroutines.delay(1200)
         val replyText = when {
-          text.contains("strata", ignoreCase = true) || text.contains("prospectus", ignoreCase = true) ->
-            "I'll have the strata documents and contingency reserve fund reports sent over to your email right away!"
+          text.contains("dues", ignoreCase = true) || text.contains("floor plan", ignoreCase = true) ||
+            text.contains("strata", ignoreCase = true) || text.contains("prospectus", ignoreCase = true) ->
+            "I'll send the floor plans and the monthly association dues breakdown to your email right away!"
           text.contains("tour", ignoreCase = true) || text.contains("walkthrough", ignoreCase = true) || text.contains("viewing", ignoreCase = true) || text.contains("available", ignoreCase = true) ->
             "The property is available! Feel free to pick a viewing time slot from the listing page or let me know your preferred time."
           text.contains("price", ignoreCase = true) || text.contains("offer", ignoreCase = true) || text.contains("tax", ignoreCase = true) ->
-            "Property taxes are approximately $4,850/yr. The sellers are open to reasonable offers this week."
+            "Real property tax here is usually around 1-2% of the assessed value per year, and the sellers are open to reasonable offers this week."
           else ->
             "Thanks for reaching out! I've noted your inquiry and will follow up with the full details shortly."
         }
@@ -904,6 +924,7 @@ class EstateViewModel(
     if (_uiState.value.userRole != UserRole.AGENT) {
       return
     }
+    if (_uiState.value.isPublishingProperty) return
     _uiState.update { it.copy(isPublishingProperty = true) }
     viewModelScope.launch {
       val created = repository.addProperty(
@@ -919,7 +940,7 @@ class EstateViewModel(
         description = description,
         amenities = amenities,
         mediaUris = mediaUris,
-        availableDates = availableDates.ifEmpty { listOf("Mon, Oct 14", "Tue, Oct 15", "Wed, Oct 16", "Thu, Oct 17") },
+        availableDates = availableDates.ifEmpty { upcomingViewingDates() },
         availableTimeSlots = availableTimeSlots.ifEmpty { listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM") }
       )
       _uiState.update {
@@ -928,7 +949,7 @@ class EstateViewModel(
           isPublishingProperty = false
         )
       }
-      postFeedback("Sanctuary listing published successfully")
+      postFeedback("Listing published")
       refreshDatabaseStats()
     }
   }
@@ -958,6 +979,7 @@ class EstateViewModel(
     if (_uiState.value.userRole != UserRole.AGENT) {
       return
     }
+    if (_uiState.value.isSavingProperty) return
     _uiState.update { it.copy(isSavingProperty = true) }
     viewModelScope.launch {
       val updated = repository.updateProperty(property)
@@ -976,7 +998,7 @@ class EstateViewModel(
 
   fun openDeletePropertyDialog(property: Property?) {
     if (property != null && _uiState.value.userRole != UserRole.AGENT) {
-      postFeedback("Unauthorized: Only verified agents/admins can delete listings")
+      postFeedback("Only verified agents can delete listings")
       return
     }
     _uiState.update {
@@ -998,10 +1020,11 @@ class EstateViewModel(
 
   fun confirmDeleteProperty() {
     if (_uiState.value.userRole != UserRole.AGENT) {
-      postFeedback("Unauthorized: Only verified agents/admins can delete listings")
+      postFeedback("Only verified agents can delete listings")
       return
     }
     val prop = _uiState.value.propertyToDelete ?: return
+    if (_uiState.value.isDeletingProperty) return
     _uiState.update { it.copy(isDeletingProperty = true) }
     viewModelScope.launch {
       val result = repository.deleteProperty(prop.id)
@@ -1016,9 +1039,9 @@ class EstateViewModel(
         )
       }
       if (result.backendDeleted) {
-        postFeedback("Listing \"${prop.title}\" deleted from PostgreSQL and app!")
+        postFeedback("Listing \"${prop.title}\" deleted")
       } else if (result.backendError != null) {
-        postFeedback("Removed locally. PostgreSQL delete failed: ${result.backendError}")
+        postFeedback("Removed from this device, but it couldn't be removed online. Please try again later.")
       } else {
         postFeedback("Listing \"${prop.title}\" deleted")
       }
@@ -1079,13 +1102,13 @@ class EstateViewModel(
     }
   }
 
-  fun updateUserPassword(newPassword: String) {
+  fun updateUserPassword(currentPassword: String, newPassword: String) {
     viewModelScope.launch {
-      val result = repository.updatePassword(newPassword)
+      val result = repository.updatePassword(currentPassword, newPassword)
       if (result.isSuccess) {
         repository.addNotification(
           title = "Security Alert: Password Updated",
-          message = "Your password has been updated in PostgreSQL.",
+          message = "Your account password was changed successfully.",
           type = NotificationType.SECURITY_ALERT
         )
         postFeedback("Password updated successfully")
@@ -1099,37 +1122,26 @@ class EstateViewModel(
   val backendConnectionInfo: StateFlow<com.example.data.remote.BackendConnectionInfo?> = (repository.backendConnectionInfo ?: MutableStateFlow(null))
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), repository.backendConnectionInfo?.value)
 
-  fun testBackendConnection() {
+  /**
+   * Re-checks status.php without a snackbar or a "Connecting" flicker. Called
+   * periodically while the app is on screen to keep the status dot current.
+   */
+  fun refreshConnectionStatus() {
     viewModelScope.launch {
-      postFeedback("Connecting to PHP / PostgreSQL backend...")
-      val result = repository.testBackendConnection()
-      if (result != null && result.isSuccess) {
-        val data = result.getOrNull()
-        postFeedback("Connected to PostgreSQL! Status: ${data?.status ?: "ONLINE"}")
-      } else {
-        val err = result?.exceptionOrNull()?.localizedMessage ?: "Cannot reach PHP backend"
-        postFeedback("Connection check: $err")
-      }
+      repository.testBackendConnection(showConnecting = false)
     }
   }
 
-  fun syncWithBackend() {
+  fun syncWithBackend(showProgress: Boolean = true) {
     viewModelScope.launch {
-      postFeedback("Syncing listings with PostgreSQL database...")
+      if (showProgress) postFeedback("Syncing your listings...")
       val result = repository.syncWithBackend()
       if (result != null && result.isSuccess) {
-        postFeedback(result.getOrDefault("Sync completed successfully!"))
+        if (showProgress) postFeedback(result.getOrDefault("Everything is up to date"))
         refreshDatabaseStats()
-      } else {
-        val err = result?.exceptionOrNull()?.localizedMessage ?: "Sync error"
-        postFeedback("Sync failed: $err")
+      } else if (showProgress) {
+        postFeedback("Couldn't sync right now. Please check your connection and try again.")
       }
     }
-  }
-
-  fun updateBackendUrl(newUrl: String) {
-    repository.updateBackendUrl(newUrl)
-    postFeedback("Backend URL updated")
-    testBackendConnection()
   }
 }

@@ -221,7 +221,7 @@ private fun NavItem(
     Text(
       text = label,
       style = MaterialTheme.typography.labelSmall.copy(
-        fontSize = 10.5.sp,
+        fontSize = 11.sp,
         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
         color = contentColor
       )

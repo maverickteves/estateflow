@@ -88,6 +88,8 @@ fun EstateTopBar(
   title: String = "Estateflow",
   subtitle: String? = null,
   userRole: UserRole,
+  connectionStatus: ConnectionStatus = ConnectionStatus.CHECKING,
+  agentName: String = "",
   unreadCount: Int,
   onNotificationClick: () -> Unit,
   onFilterClick: () -> Unit,
@@ -95,8 +97,8 @@ fun EstateTopBar(
   onProfileClick: (() -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
-  val isDark = androidx.compose.foundation.isSystemInDarkTheme()
-  val brandAccent = if (isDark) LimeAccent else ForestGreen
+  // The app uses the light theme only, so the top bar ignores the phone's dark mode.
+  val brandAccent = ForestGreen
 
   Row(
     modifier = modifier
@@ -116,7 +118,7 @@ fun EstateTopBar(
         modifier = Modifier
           .size(42.dp)
           .clip(CircleShape)
-          .background(if (isDark) NaturalDarkAlt else SandWarm)
+          .background(SandWarm)
           .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape)
           .then(
             if (onProfileClick != null) {
@@ -129,12 +131,7 @@ fun EstateTopBar(
         contentAlignment = Alignment.Center
       ) {
         if (userRole == UserRole.AGENT) {
-          Image(
-            painter = painterResource(id = R.drawable.agent_sarah_avatar_1787131767100),
-            contentDescription = "Agent Avatar",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-          )
+          PersonAvatar(name = agentName, size = 42.dp)
         } else {
           Icon(
             imageVector = Icons.Default.Person,
@@ -145,16 +142,7 @@ fun EstateTopBar(
         }
       }
 
-      Column {
-        Text(
-          text = "LOCATION",
-          style = MaterialTheme.typography.labelSmall.copy(
-            fontWeight = FontWeight.Bold,
-            fontSize = 9.5.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 1.sp
-          )
-        )
+      Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(3.dp)
@@ -174,55 +162,15 @@ fun EstateTopBar(
             )
           )
         }
+        ConnectionStatusIndicator(status = connectionStatus, modifier = Modifier.padding(start = 4.dp))
       }
     }
 
-    // Right side: Role switch chip & Natural Tones notification button
+    // Right side: notification button
     Row(
       verticalAlignment = Alignment.CenterVertically,
       horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-      // Role Switcher Chip with smooth animation
-      val roleBg by animateColorAsState(
-        targetValue = if (userRole == UserRole.AGENT) ForestGreen else MaterialTheme.colorScheme.surfaceVariant,
-        label = "role_bg"
-      )
-      val roleTextColor by animateColorAsState(
-        targetValue = if (userRole == UserRole.AGENT) Color.White else MaterialTheme.colorScheme.onSurface,
-        label = "role_text_color"
-      )
-
-      Surface(
-        modifier = Modifier
-          .clip(RoundedCornerShape(20.dp))
-          .clickable { onToggleRoleClick() }
-          .testTag("role_switcher_button"),
-        color = roleBg,
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        shape = RoundedCornerShape(20.dp)
-      ) {
-        Row(
-          modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(5.dp)
-        ) {
-          Icon(
-            imageVector = if (userRole == UserRole.AGENT) Icons.Default.BusinessCenter else Icons.Default.Person,
-            contentDescription = "Switch Role",
-            tint = roleTextColor,
-            modifier = Modifier.size(13.dp)
-          )
-          Text(
-            text = if (userRole == UserRole.AGENT) "Agent" else "Buyer",
-            style = MaterialTheme.typography.labelSmall.copy(
-              fontWeight = FontWeight.Bold,
-              color = roleTextColor,
-              fontSize = 11.5.sp
-            )
-          )
-        }
-      }
-
       // Notifications Bell button matching Natural Tones mockup
       Box(
         modifier = Modifier
@@ -254,7 +202,7 @@ fun EstateTopBar(
               text = if (unreadCount > 9) "9+" else "$unreadCount",
               style = MaterialTheme.typography.labelSmall.copy(
                 color = Color.White,
-                fontSize = 8.5.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold
               )
             )
@@ -479,7 +427,7 @@ fun PropertyCard(
             text = property.title,
             style = MaterialTheme.typography.titleMedium.copy(
               fontWeight = FontWeight.Bold,
-              fontSize = 17.sp,
+              fontSize = 18.sp,
               color = NaturalDark
             ),
             modifier = Modifier.weight(1f),
@@ -515,7 +463,7 @@ fun PropertyCard(
                 if (onEditClick != null) {
                   DropdownMenuItem(
                     text = {
-                      Text("Edit Sanctuary Details", color = NaturalDark, fontWeight = FontWeight.Medium, fontSize = 13.5.sp)
+                      Text("Edit Listing", color = NaturalDark, fontWeight = FontWeight.Medium, fontSize = 14.sp)
                     },
                     leadingIcon = {
                       Icon(Icons.Default.Edit, contentDescription = null, tint = ForestGreen, modifier = Modifier.size(18.dp))
@@ -535,7 +483,7 @@ fun PropertyCard(
                 if (onDeleteClick != null) {
                   DropdownMenuItem(
                     text = {
-                      Text("Remove Listing", color = RoseFavorite, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
+                      Text("Remove Listing", color = RoseFavorite, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     },
                     leadingIcon = {
                       Icon(Icons.Default.DeleteOutline, contentDescription = null, tint = RoseFavorite, modifier = Modifier.size(18.dp))
@@ -569,7 +517,7 @@ fun PropertyCard(
             text = property.address,
             style = MaterialTheme.typography.bodySmall.copy(
               color = TaupeDark,
-              fontSize = 12.5.sp
+              fontSize = 13.sp
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -622,7 +570,7 @@ private fun SpecPill(
         style = MaterialTheme.typography.labelSmall.copy(
           color = NaturalDark,
           fontWeight = FontWeight.Medium,
-          fontSize = 11.5.sp
+          fontSize = 12.sp
         )
       )
     }
@@ -665,7 +613,7 @@ fun MetricFeatureItem(
       text = value,
       style = MaterialTheme.typography.bodyMedium.copy(
         fontWeight = FontWeight.Bold,
-        fontSize = 12.5.sp,
+        fontSize = 13.sp,
         color = NaturalDark
       ),
       maxLines = 1,
@@ -731,7 +679,7 @@ fun CustomEstateSnackbar(
           style = MaterialTheme.typography.bodyMedium.copy(
             color = Color.White,
             fontWeight = FontWeight.Medium,
-            fontSize = 13.5.sp
+            fontSize = 14.sp
           )
         )
       }
@@ -754,7 +702,7 @@ fun CustomEstateSnackbar(
             style = MaterialTheme.typography.labelMedium.copy(
               color = LimeAccent,
               fontWeight = FontWeight.Bold,
-              fontSize = 12.5.sp
+              fontSize = 13.sp
             )
           )
         }
@@ -835,7 +783,7 @@ fun QuickFilterBar(
           style = MaterialTheme.typography.labelSmall.copy(
             color = RoseFavorite,
             fontWeight = FontWeight.Bold,
-            fontSize = 11.5.sp
+            fontSize = 12.sp
           )
         )
       }
@@ -869,7 +817,7 @@ fun QuickFilterBar(
             style = MaterialTheme.typography.labelSmall.copy(
               color = NaturalDark,
               fontWeight = FontWeight.Medium,
-              fontSize = 11.5.sp
+              fontSize = 12.sp
             )
           )
         }
@@ -901,7 +849,7 @@ private fun ActiveChip(
         style = MaterialTheme.typography.labelSmall.copy(
           color = Color.White,
           fontWeight = FontWeight.Bold,
-          fontSize = 11.5.sp
+          fontSize = 12.sp
         )
       )
       Icon(

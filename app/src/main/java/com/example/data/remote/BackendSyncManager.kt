@@ -1,5 +1,6 @@
 package com.example.data.remote
 
+import com.example.data.model.upcomingViewingDates
 import android.content.Context
 import com.example.data.local.EstateDatabase
 import com.example.data.local.entity.InquiryEntity
@@ -53,20 +54,17 @@ class BackendSyncManager(
   )
   val connectionInfo: StateFlow<BackendConnectionInfo> = _connectionInfo.asStateFlow()
 
-  fun updateBackendUrl(newUrl: String) {
-    apiClient.baseUrl = newUrl
-    _connectionInfo.value = _connectionInfo.value.copy(
-      backendUrl = apiClient.baseUrl,
-      state = BackendConnectionState.OFFLINE,
-      errorMessage = null
-    )
-  }
-
-  suspend fun testConnection(): Result<BackendStatusResponse> = withContext(Dispatchers.IO) {
-    _connectionInfo.value = _connectionInfo.value.copy(
-      state = BackendConnectionState.CONNECTING,
-      errorMessage = null
-    )
+  /**
+   * Pings status.php. Background checks pass [showConnecting] = false so the
+   * status dot keeps its last known state instead of flickering on every check.
+   */
+  suspend fun testConnection(showConnecting: Boolean = true): Result<BackendStatusResponse> = withContext(Dispatchers.IO) {
+    if (showConnecting) {
+      _connectionInfo.value = _connectionInfo.value.copy(
+        state = BackendConnectionState.CONNECTING,
+        errorMessage = null
+      )
+    }
 
     try {
       val response = apiClient.service.getStatus()
@@ -146,7 +144,7 @@ class BackendSyncManager(
             mediaUris = dto.mediaUris,
             isFavorite = dto.isFavorite,
             status = dto.status,
-            availableDates = dto.availableDates.ifEmpty { listOf("Mon, Oct 14", "Tue, Oct 15", "Wed, Oct 16", "Thu, Oct 17") },
+            availableDates = dto.availableDates.ifEmpty { upcomingViewingDates() },
             availableTimeSlots = dto.availableTimeSlots.ifEmpty { listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM") },
             amenities = dto.amenities.ifEmpty { listOf("Modern Design", "High Speed Internet") },
             yearBuilt = dto.yearBuilt,
@@ -274,7 +272,7 @@ class BackendSyncManager(
         errorMessage = null
       )
 
-      Result.success("Synced $updatedCount properties & schedules with PostgreSQL successfully!")
+      Result.success("Synced $updatedCount listings and schedules")
     } catch (e: Exception) {
       _connectionInfo.value = _connectionInfo.value.copy(
         errorMessage = "Sync error: ${e.localizedMessage}"
@@ -519,6 +517,12 @@ class BackendSyncManager(
     }
   }
 
+  /** Network failures shown to users must not reveal server addresses. */
+  private fun userFacingNetworkError(e: Exception): String = when (e) {
+    is java.io.IOException -> "Can't reach Estateflow right now. Check your connection and try again."
+    else -> "Something went wrong. Please try again."
+  }
+
   private fun parseAuthError(response: retrofit2.Response<*>): String {
     val rawError = response.errorBody()?.string()?.trim() ?: ""
     if (rawError.isNotBlank()) {
@@ -529,7 +533,7 @@ class BackendSyncManager(
       } catch (_: Exception) {}
       if (!rawError.startsWith("<")) return rawError
     }
-    return "HTTP ${response.code()}: ${response.message()}"
+    return "Something went wrong (error ${response.code()}). Please try again."
   }
 
   suspend fun loginClientOnBackend(email: String, password: String = ""): Result<UserAccount> = withContext(Dispatchers.IO) {
@@ -542,7 +546,7 @@ class BackendSyncManager(
       val errorMsg = body?.error ?: parseAuthError(response)
       Result.failure(Exception(errorMsg))
     } catch (e: Exception) {
-      Result.failure(e)
+      Result.failure(Exception(userFacingNetworkError(e)))
     }
   }
 
@@ -563,7 +567,7 @@ class BackendSyncManager(
       val errorMsg = body?.error ?: parseAuthError(response)
       Result.failure(Exception(errorMsg))
     } catch (e: Exception) {
-      Result.failure(e)
+      Result.failure(Exception(userFacingNetworkError(e)))
     }
   }
 
@@ -577,7 +581,7 @@ class BackendSyncManager(
       val errorMsg = body?.error ?: parseAuthError(response)
       Result.failure(Exception(errorMsg))
     } catch (e: Exception) {
-      Result.failure(e)
+      Result.failure(Exception(userFacingNetworkError(e)))
     }
   }
 
@@ -600,19 +604,21 @@ class BackendSyncManager(
       val errorMsg = body?.error ?: parseAuthError(response)
       Result.failure(Exception(errorMsg))
     } catch (e: Exception) {
-      Result.failure(e)
+      Result.failure(Exception(userFacingNetworkError(e)))
     }
   }
 
-  suspend fun updatePasswordOnBackend(email: String, password: String): Result<ApiResponse> = withContext(Dispatchers.IO) {
+  suspend fun updatePasswordOnBackend(email: String, currentPassword: String, newPassword: String): Result<ApiResponse> = withContext(Dispatchers.IO) {
     try {
-      val response = apiClient.service.updatePassword(mapOf("email" to email, "newPassword" to password))
+      val response = apiClient.service.updatePassword(
+        mapOf("email" to email, "currentPassword" to currentPassword, "newPassword" to newPassword)
+      )
       if (!response.isSuccessful || response.body()?.success != true) {
-        return@withContext Result.failure(Exception(response.body()?.error ?: "Password update failed: HTTP ${response.code()}"))
+        return@withContext Result.failure(Exception(response.body()?.error ?: "Password update failed. Please try again."))
       }
       Result.success(response.body()!!)
     } catch (e: Exception) {
-      Result.failure(e)
+      Result.failure(Exception(userFacingNetworkError(e)))
     }
   }
 
