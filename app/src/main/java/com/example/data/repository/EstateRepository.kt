@@ -538,6 +538,7 @@ class EstateRepository private constructor(
   }
 
   suspend fun logout() = withContext(Dispatchers.IO) {
+    syncManager?.clearAuthToken()
     database.userSessionDao().clearActiveSessions()
   }
 
@@ -555,6 +556,7 @@ class EstateRepository private constructor(
   }
 
   suspend fun resetDatabaseToDefaults() = withContext(Dispatchers.IO) {
+    syncManager?.clearAuthToken()
     database.userSessionDao().clearAll()
     database.propertyDao().clearAll()
     database.appointmentDao().clearAll()

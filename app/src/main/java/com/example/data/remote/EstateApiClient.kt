@@ -23,6 +23,15 @@ class EstateApiClient private constructor(context: Context) {
     prefs.edit().remove("backend_url").apply()
   }
 
+  /** Access token from the last sign-in, sent with every request so the backend knows who is calling. */
+  var authToken: String?
+    get() = prefs.getString(KEY_AUTH_TOKEN, null)
+    set(value) {
+      prefs.edit().apply {
+        if (value.isNullOrBlank()) remove(KEY_AUTH_TOKEN) else putString(KEY_AUTH_TOKEN, value)
+      }.apply()
+    }
+
   val moshi: Moshi = Moshi.Builder()
     .addLast(KotlinJsonAdapterFactory())
     .build()
@@ -31,6 +40,21 @@ class EstateApiClient private constructor(context: Context) {
     .connectTimeout(8, TimeUnit.SECONDS)
     .readTimeout(8, TimeUnit.SECONDS)
     .writeTimeout(8, TimeUnit.SECONDS)
+    .addInterceptor { chain ->
+      val token = authToken
+      val request = if (token != null) {
+        chain.request().newBuilder().header("Authorization", "Bearer $token").build()
+      } else {
+        chain.request()
+      }
+      val response = chain.proceed(request)
+      // An expired or revoked token is dropped so the user is asked to sign in again
+      // instead of every request failing. Wrong-password replies from auth.php are not session errors.
+      if (token != null && response.code == 401 && !request.url.encodedPath.endsWith("auth.php")) {
+        authToken = null
+      }
+      response
+    }
     .addInterceptor(HttpLoggingInterceptor().apply {
       // Request bodies carry passwords, so never log them outside debug builds.
       level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
@@ -51,6 +75,7 @@ class EstateApiClient private constructor(context: Context) {
 
   companion object {
     const val DEFAULT_EMULATOR_URL = "https://estateflow-backend.wasmer.app/api/"
+    private const val KEY_AUTH_TOKEN = "auth_token"
 
     @Volatile
     private var INSTANCE: EstateApiClient? = null

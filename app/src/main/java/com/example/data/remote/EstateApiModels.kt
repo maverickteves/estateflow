@@ -22,7 +22,8 @@ data class ApiResponse(
   val message: String? = null,
   val error: String? = null,
   val id: String? = null,
-  val isFavorite: Boolean? = null
+  val isFavorite: Boolean? = null,
+  val token: String? = null
 )
 
 @JsonClass(generateAdapter = true)
@@ -42,7 +43,8 @@ data class AuthResponse(
   val success: Boolean = false,
   val message: String? = null,
   val error: String? = null,
-  val user: AuthUserDto? = null
+  val user: AuthUserDto? = null,
+  val token: String? = null
 )
 
 @JsonClass(generateAdapter = true)

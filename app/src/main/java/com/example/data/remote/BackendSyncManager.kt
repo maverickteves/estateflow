@@ -541,6 +541,7 @@ class BackendSyncManager(
       val response = apiClient.service.clientLogin(mapOf("email" to email, "password" to password))
       val body = response.body()
       if (response.isSuccessful && body?.success == true && body.user != null) {
+        apiClient.authToken = body.token
         return@withContext Result.success(body.user.toDomain())
       }
       val errorMsg = body?.error ?: parseAuthError(response)
@@ -562,6 +563,7 @@ class BackendSyncManager(
       )
       val body = response.body()
       if (response.isSuccessful && body?.success == true && body.user != null) {
+        apiClient.authToken = body.token
         return@withContext Result.success(body.user.toDomain())
       }
       val errorMsg = body?.error ?: parseAuthError(response)
@@ -576,6 +578,7 @@ class BackendSyncManager(
       val response = apiClient.service.agentLogin(mapOf("emailOrLicense" to identifier, "password" to password))
       val body = response.body()
       if (response.isSuccessful && body?.success == true && body.user != null) {
+        apiClient.authToken = body.token
         return@withContext Result.success(body.user.toDomain())
       }
       val errorMsg = body?.error ?: parseAuthError(response)
@@ -599,6 +602,7 @@ class BackendSyncManager(
       )
       val body = response.body()
       if (response.isSuccessful && body?.success == true && body.user != null) {
+        apiClient.authToken = body.token
         return@withContext Result.success(body.user.toDomain())
       }
       val errorMsg = body?.error ?: parseAuthError(response)
@@ -614,12 +618,18 @@ class BackendSyncManager(
         mapOf("email" to email, "currentPassword" to currentPassword, "newPassword" to newPassword)
       )
       if (!response.isSuccessful || response.body()?.success != true) {
-        return@withContext Result.failure(Exception(response.body()?.error ?: "Password update failed. Please try again."))
+        return@withContext Result.failure(Exception(response.body()?.error ?: parseAuthError(response)))
       }
+      // The old token stops working once the password changes
+      response.body()?.token?.let { apiClient.authToken = it }
       Result.success(response.body()!!)
     } catch (e: Exception) {
       Result.failure(Exception(userFacingNetworkError(e)))
     }
+  }
+
+  fun clearAuthToken() {
+    apiClient.authToken = null
   }
 
   private fun AuthUserDto.toDomain(): UserAccount = UserAccount(
