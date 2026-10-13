@@ -1,5 +1,7 @@
 package com.example.ui.viewmodel
 
+import com.example.data.model.ListingLimits
+import com.example.data.model.ListingStatus
 import com.example.data.model.upcomingViewingDates
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
@@ -52,7 +54,8 @@ private data class FilterCriteria(
   val maxSqft: Int,
   val minYearBuilt: Int,
   val listingType: String,
-  val selectedAmenities: Set<String>
+  val selectedAmenities: Set<String>,
+  val hideSold: Boolean
 )
 
 data class EstateUiState(
@@ -97,6 +100,7 @@ data class EstateUiState(
   val activeVideoUrl: String? = null,
   val activeVideoTitle: String = "",
   val isPublishingProperty: Boolean = false,
+  val isRefreshing: Boolean = false,
   val isSavingProperty: Boolean = false,
   val isDeletingProperty: Boolean = false,
   val isSubmittingBooking: Boolean = false,
@@ -190,7 +194,9 @@ class EstateViewModel(
       maxSqft = it.maxSqft,
       minYearBuilt = it.minYearBuilt,
       listingType = it.listingType,
-      selectedAmenities = it.selectedAmenities
+      selectedAmenities = it.selectedAmenities,
+      // Buyers don't need sold listings in search; agents still see all of theirs
+      hideSold = it.userRole != UserRole.AGENT
     )
   }.distinctUntilChanged()
 
@@ -220,8 +226,11 @@ class EstateViewModel(
 
       val matchesBeds = prop.beds >= criteria.minBeds
       val matchesBaths = prop.baths >= criteria.minBaths
-      val matchesSqft = prop.sqft in criteria.minSqft..criteria.maxSqft
-      val matchesPrice = prop.price in criteria.minPrice..criteria.maxPrice
+      // A slider at its top value means "no upper limit", so bigger or pricier listings still show
+      val matchesSqft = prop.sqft >= criteria.minSqft &&
+          (criteria.maxSqft >= ListingLimits.FILTER_MAX_SQFT || prop.sqft <= criteria.maxSqft)
+      val matchesPrice = prop.price >= criteria.minPrice &&
+          (criteria.maxPrice >= ListingLimits.FILTER_MAX_PRICE || prop.price <= criteria.maxPrice)
       val matchesYearBuilt = criteria.minYearBuilt <= 0 || prop.yearBuilt >= criteria.minYearBuilt
       val matchesListingType = when (criteria.listingType) {
         "For Sale" -> !prop.isRental
@@ -236,7 +245,9 @@ class EstateViewModel(
         }
       }
 
-      matchesCategory && matchesSearch && matchesBeds && matchesBaths && matchesSqft && matchesPrice && matchesYearBuilt && matchesListingType && matchesAmenities
+      val matchesStatus = !criteria.hideSold || !ListingStatus.isSold(prop.status)
+
+      matchesStatus && matchesCategory && matchesSearch && matchesBeds && matchesBaths && matchesSqft && matchesPrice && matchesYearBuilt && matchesListingType && matchesAmenities
     }
   }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -725,7 +736,16 @@ class EstateViewModel(
   }
 
   fun openBookingDialog(open: Boolean) {
+    if (open && !selectedPropertyAcceptsBuyers()) return
     _uiState.update { it.copy(isBookingDialogOpen = open) }
+  }
+
+  /** False when a buyer is on a Pending or Sold listing, after telling them why. */
+  private fun selectedPropertyAcceptsBuyers(): Boolean {
+    val property = _uiState.value.selectedProperty ?: return true
+    if (_uiState.value.userRole == UserRole.AGENT || ListingStatus.acceptsBuyers(property.status)) return true
+    postFeedback(ListingStatus.buyerNote(property.status) ?: "This property is no longer available.")
+    return false
   }
 
   fun openBookingSuccessDialog(open: Boolean) {
@@ -733,6 +753,7 @@ class EstateViewModel(
   }
 
   fun openInquiryDialog(open: Boolean) {
+    if (open && !selectedPropertyAcceptsBuyers()) return
     if (open) {
       val user = currentUser.value
       if (user == null || user.role != UserRole.BUYER) {
@@ -1129,6 +1150,21 @@ class EstateViewModel(
   fun refreshConnectionStatus() {
     viewModelScope.launch {
       repository.testBackendConnection(showConnecting = false)
+    }
+  }
+
+  /** Pull-to-refresh: syncs everything quietly and only speaks up when it fails. */
+  fun pullToRefresh() {
+    if (_uiState.value.isRefreshing) return
+    _uiState.update { it.copy(isRefreshing = true) }
+    viewModelScope.launch {
+      val result = repository.syncWithBackend()
+      if (result != null && result.isSuccess) {
+        refreshDatabaseStats()
+      } else {
+        postFeedback("Couldn't refresh right now. Please check your connection and try again.")
+      }
+      _uiState.update { it.copy(isRefreshing = false) }
     }
   }
 

@@ -70,6 +70,8 @@ import coil.request.ImageRequest
 import com.example.R
 import com.example.data.model.Property
 import com.example.ui.components.MetricFeatureItem
+import com.example.ui.components.listingStatusColor
+import com.example.data.model.ListingStatus
 import com.example.ui.theme.*
 
 @Composable
@@ -91,6 +93,10 @@ fun PropertyDetailsScreen(
   val context = LocalContext.current
   val scrollState = rememberScrollState()
   var selectedMediaIndex by remember { mutableIntStateOf(0) }
+  // Agents manage the listing; buyers can't book or ask about Pending and Sold listings
+  val isBuyerView = onEditClick == null && onDeleteClick == null
+  val acceptsBuyers = !isBuyerView || ListingStatus.acceptsBuyers(property.status)
+  val buyerNote = if (isBuyerView) ListingStatus.buyerNote(property.status) else null
 
   Column(
     modifier = modifier
@@ -304,13 +310,17 @@ fun PropertyDetailsScreen(
             )
         )
 
-        // Status tag
+        // Status tag, coloured by listing status
         Surface(
           modifier = Modifier
             .padding(12.dp)
             .align(Alignment.BottomStart),
           shape = RoundedCornerShape(8.dp),
-          color = NaturalDark.copy(alpha = 0.85f)
+          color = if (property.status.equals(ListingStatus.ACTIVE, ignoreCase = true)) {
+            NaturalDark.copy(alpha = 0.85f)
+          } else {
+            listingStatusColor(property.status).copy(alpha = 0.92f)
+          }
         ) {
           Text(
             text = "${property.status} • For ${if (property.isRental) "Rent" else "Sale"}",
@@ -704,6 +714,7 @@ fun PropertyDetailsScreen(
           }
           IconButton(
             onClick = onInquiryClick,
+            enabled = acceptsBuyers,
             modifier = Modifier
               .size(38.dp)
               .background(SandMuted, CircleShape)
@@ -722,20 +733,43 @@ fun PropertyDetailsScreen(
 
       Spacer(modifier = Modifier.height(20.dp))
 
+      if (buyerNote != null) {
+        Surface(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .testTag("listing_status_note"),
+          shape = RoundedCornerShape(12.dp),
+          color = if (acceptsBuyers) AmberLight else SandMuted,
+          border = androidx.compose.foundation.BorderStroke(1.dp, if (acceptsBuyers) AmberPending else SandWarm)
+        ) {
+          Text(
+            text = buyerNote,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.bodySmall.copy(
+              color = NaturalDark,
+              fontWeight = FontWeight.Medium,
+              fontSize = 13.sp
+            )
+          )
+        }
+      }
+
       // Primary Book Viewing CTA Button in ForestGreen
       Button(
         onClick = onBookAppointmentClick,
+        enabled = acceptsBuyers,
         modifier = Modifier
           .fillMaxWidth()
           .height(48.dp)
           .testTag("book_viewing_appointment_button"),
         shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = ForestGreen)
+        colors = ButtonDefaults.buttonColors(containerColor = ForestGreen, disabledContainerColor = SandWarm)
       ) {
         Text(
-          text = "Book a Viewing Appointment",
+          text = if (acceptsBuyers) "Book a Viewing Appointment" else "No Longer Available",
           style = MaterialTheme.typography.titleMedium.copy(
-            color = Color.White,
+            color = if (acceptsBuyers) Color.White else TaupeMuted,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp
           )
@@ -747,6 +781,7 @@ fun PropertyDetailsScreen(
       // Secondary Send Inquiry Button
       OutlinedButton(
         onClick = onInquiryClick,
+        enabled = acceptsBuyers,
         modifier = Modifier
           .fillMaxWidth()
           .height(48.dp)

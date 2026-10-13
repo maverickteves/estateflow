@@ -20,7 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -105,6 +107,7 @@ class MainActivity : ComponentActivity() {
   }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EstateflowApp(
   viewModel: EstateViewModel = viewModel()
@@ -200,222 +203,229 @@ fun EstateflowApp(
         .fillMaxSize()
         .padding(innerPadding)
     ) {
-      Crossfade(
-        targetState = uiState.currentScreen,
-        animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-        label = "screen_crossfade"
-      ) { screen ->
-        when (screen) {
-          Screen.WELCOME -> {
-            WelcomeScreen(
-              onGetStarted = { viewModel.navigateTo(Screen.HOME) },
-              onAgentPortalClick = { viewModel.openAgentLoginDialog(true) }
-            )
-          }
-
-          Screen.HOME -> {
-            HomeListingsScreen(
-              properties = filteredProperties,
-              searchQuery = uiState.searchQuery,
-              selectedCategory = uiState.selectedCategory,
-              onSearchQueryChange = { viewModel.setSearchQuery(it) },
-              onCategorySelect = { viewModel.setSelectedCategory(it) },
-              onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
-              onFavoriteClick = { id -> viewModel.toggleFavorite(id) },
-              onOpenFilterSheet = { viewModel.openFilterSheet(true) },
-              activeFilterCount = uiState.activeFilterCount,
-              minPrice = uiState.minPrice,
-              maxPrice = uiState.maxPrice,
-              minBeds = uiState.minBeds,
-              minBaths = uiState.minBaths,
-              minSqft = uiState.minSqft,
-              maxSqft = uiState.maxSqft,
-              minYearBuilt = uiState.minYearBuilt,
-              listingType = uiState.listingType,
-              selectedAmenities = uiState.selectedAmenities,
-              onClearPriceFilter = { viewModel.clearPriceFilter() },
-              onClearBedsFilter = { viewModel.clearBedsFilter() },
-              onClearBathsFilter = { viewModel.clearBathsFilter() },
-              onClearSqftFilter = { viewModel.clearSqftFilter() },
-              onClearYearBuiltFilter = { viewModel.clearYearBuiltFilter() },
-              onClearListingTypeFilter = { viewModel.clearListingTypeFilter() },
-              onRemoveAmenityFilter = { amenity -> viewModel.removeAmenityFilter(amenity) },
-              onResetFilters = { viewModel.resetFilters() },
-              onApplyQuickPreset = { preset -> viewModel.applyQuickPreset(preset) },
-              onAddPropertyClick = if (uiState.userRole == UserRole.AGENT) { { viewModel.openAddPropertyDialog(true) } } else null,
-              onEditPropertyClick = if (uiState.userRole == UserRole.AGENT) { { prop -> viewModel.openEditPropertyDialog(prop) } } else null,
-              onDeletePropertyClick = if (uiState.userRole == UserRole.AGENT) { { prop -> viewModel.openDeletePropertyDialog(prop) } } else null
-            )
-          }
-
-          Screen.PROPERTY_DETAILS -> {
-            uiState.selectedProperty?.let { property ->
-              PropertyDetailsScreen(
-                property = property,
-                selectedDate = uiState.bookingSelectedDate,
-                selectedTimeSlot = uiState.bookingSelectedTime,
-                onDateSelected = { date -> viewModel.setBookingDate(date) },
-                onTimeSlotSelected = { time -> viewModel.setBookingTime(time) },
-                onBackClick = { viewModel.closePropertyDetails() },
-                onFavoriteClick = { viewModel.toggleFavorite(property.id) },
-                onBookAppointmentClick = { viewModel.initiateBooking(property) },
-                onInquiryClick = { viewModel.openInquiryDialog(true) },
-                onEditClick = if (uiState.userRole == UserRole.AGENT) { { viewModel.openEditPropertyDialog(property) } } else null,
-                onDeleteClick = if (uiState.userRole == UserRole.AGENT) { { viewModel.openDeletePropertyDialog(property) } } else null,
-                onPlayVideoClick = { videoUrl -> viewModel.playVideo(videoUrl, property.title) }
+      // Pull down on any screen to sync listings, messages, bookings and notifications
+      PullToRefreshBox(
+        isRefreshing = uiState.isRefreshing,
+        onRefresh = { viewModel.pullToRefresh() },
+        modifier = Modifier.fillMaxSize()
+      ) {
+        Crossfade(
+          targetState = uiState.currentScreen,
+          animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+          label = "screen_crossfade"
+        ) { screen ->
+          when (screen) {
+            Screen.WELCOME -> {
+              WelcomeScreen(
+                onGetStarted = { viewModel.navigateTo(Screen.HOME) },
+                onAgentPortalClick = { viewModel.openAgentLoginDialog(true) }
               )
             }
-          }
 
-          Screen.AGENT_DASHBOARD -> {
-            AgentDashboardScreen(
-              agentProfile = agentProfile,
-              currentUser = currentUser,
-              connectionStatus = connectionStatus,
-              appointments = appointments,
-              inquiries = inquiries,
-              activeListingsCount = properties.size,
-              properties = properties,
-              onAddPropertyClick = { viewModel.openAddPropertyDialog(true) },
-              onAvailabilityClick = { viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS) },
-              onInquiriesClick = { viewModel.navigateTo(Screen.MESSAGES) },
-              onEditListingsClick = { viewModel.navigateTo(Screen.HOME) },
-              onAppointmentClick = { appt -> viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS) },
-              onInquiryClick = { inq -> viewModel.openInquiryChat(inq) },
-              onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
-              onEditPropertyClick = { prop -> viewModel.openEditPropertyDialog(prop) },
-              onDeletePropertyClick = { prop -> viewModel.openDeletePropertyDialog(prop) },
-              onPlayVideoClick = { videoUrl -> viewModel.playVideo(videoUrl, "Property Video Tour") }
-            )
-          }
+            Screen.HOME -> {
+              HomeListingsScreen(
+                properties = filteredProperties,
+                searchQuery = uiState.searchQuery,
+                selectedCategory = uiState.selectedCategory,
+                onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                onCategorySelect = { viewModel.setSelectedCategory(it) },
+                onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
+                onFavoriteClick = { id -> viewModel.toggleFavorite(id) },
+                onOpenFilterSheet = { viewModel.openFilterSheet(true) },
+                activeFilterCount = uiState.activeFilterCount,
+                minPrice = uiState.minPrice,
+                maxPrice = uiState.maxPrice,
+                minBeds = uiState.minBeds,
+                minBaths = uiState.minBaths,
+                minSqft = uiState.minSqft,
+                maxSqft = uiState.maxSqft,
+                minYearBuilt = uiState.minYearBuilt,
+                listingType = uiState.listingType,
+                selectedAmenities = uiState.selectedAmenities,
+                onClearPriceFilter = { viewModel.clearPriceFilter() },
+                onClearBedsFilter = { viewModel.clearBedsFilter() },
+                onClearBathsFilter = { viewModel.clearBathsFilter() },
+                onClearSqftFilter = { viewModel.clearSqftFilter() },
+                onClearYearBuiltFilter = { viewModel.clearYearBuiltFilter() },
+                onClearListingTypeFilter = { viewModel.clearListingTypeFilter() },
+                onRemoveAmenityFilter = { amenity -> viewModel.removeAmenityFilter(amenity) },
+                onResetFilters = { viewModel.resetFilters() },
+                onApplyQuickPreset = { preset -> viewModel.applyQuickPreset(preset) },
+                onAddPropertyClick = if (uiState.userRole == UserRole.AGENT) { { viewModel.openAddPropertyDialog(true) } } else null,
+                onEditPropertyClick = if (uiState.userRole == UserRole.AGENT) { { prop -> viewModel.openEditPropertyDialog(prop) } } else null,
+                onDeletePropertyClick = if (uiState.userRole == UserRole.AGENT) { { prop -> viewModel.openDeletePropertyDialog(prop) } } else null
+              )
+            }
 
-          Screen.SAVED -> if (currentUser == null) {
-            SignInRequiredScreen(
-              title = "Saved Properties",
-              icon = Icons.Default.FavoriteBorder,
-              heading = "Sign in to save homes",
-              message = "Create a free account or sign in to save properties you like and find them here anytime.",
-              onSignIn = { viewModel.openClientAuthDialog(true, prompt = "Sign in or create an account to save homes.") },
-              onExplore = { viewModel.navigateTo(Screen.HOME) }
-            )
-          } else {
-            SavedScreen(
-              savedProperties = savedProperties,
-              onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
-              onFavoriteClick = { id -> viewModel.toggleFavorite(id) },
-              onExploreClick = { viewModel.navigateTo(Screen.HOME) }
-            )
-          }
-
-          Screen.SEARCH -> {
-            SearchScreen(
-              properties = filteredProperties,
-              searchQuery = uiState.searchQuery,
-              selectedCategory = uiState.selectedCategory,
-              onSearchQueryChange = { viewModel.setSearchQuery(it) },
-              onCategorySelect = { viewModel.setSelectedCategory(it) },
-              onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
-              onFavoriteClick = { id -> viewModel.toggleFavorite(id) },
-              onOpenFilterSheet = { viewModel.openFilterSheet(true) },
-              activeFilterCount = uiState.activeFilterCount,
-              minPrice = uiState.minPrice,
-              maxPrice = uiState.maxPrice,
-              minBeds = uiState.minBeds,
-              minBaths = uiState.minBaths,
-              minSqft = uiState.minSqft,
-              maxSqft = uiState.maxSqft,
-              minYearBuilt = uiState.minYearBuilt,
-              listingType = uiState.listingType,
-              selectedAmenities = uiState.selectedAmenities,
-              onClearPriceFilter = { viewModel.clearPriceFilter() },
-              onClearBedsFilter = { viewModel.clearBedsFilter() },
-              onClearBathsFilter = { viewModel.clearBathsFilter() },
-              onClearSqftFilter = { viewModel.clearSqftFilter() },
-              onClearYearBuiltFilter = { viewModel.clearYearBuiltFilter() },
-              onClearListingTypeFilter = { viewModel.clearListingTypeFilter() },
-              onRemoveAmenityFilter = { amenity -> viewModel.removeAmenityFilter(amenity) },
-              onResetFilters = { viewModel.resetFilters() },
-              onApplyQuickPreset = { preset -> viewModel.applyQuickPreset(preset) }
-            )
-          }
-
-          Screen.MESSAGES -> if (currentUser == null) {
-            SignInRequiredScreen(
-              title = "Inbox",
-              icon = Icons.Default.ChatBubbleOutline,
-              heading = "Sign in to message an agent",
-              message = "Sign in to ask agents about a listing and keep all your conversations in one place.",
-              onSignIn = { viewModel.openClientAuthDialog(true, prompt = "Sign in or create an account to message agents.") },
-              onExplore = { viewModel.navigateTo(Screen.HOME) }
-            )
-          } else {
-            MessagesScreen(
-              inquiries = inquiries,
-              selectedInquiry = selectedInquiry,
-              userRole = uiState.userRole,
-              properties = properties,
-              onSelectInquiry = { inq -> viewModel.openInquiryChat(inq) },
-              onBackToList = {
-                viewModel.closeInquiryChat()
-              },
-              onSendMessage = { inqId, text -> viewModel.sendChatMessage(inqId, text) }
-            )
-          }
-
-          Screen.NOTIFICATIONS -> {
-            NotificationsScreen(
-              notifications = notifications,
-              onNotificationClick = { notif ->
-                viewModel.markNotificationAsRead(notif.id)
-                val target = notif.targetId
-                if (target != null) {
-                  val matchedInq = inquiries.find { it.id == target }
-                  val matchedAppt = appointments.find { it.id == target }
-                  val matchedProp = filteredProperties.find { it.id == target }
-
-                  when {
-                    matchedInq != null -> viewModel.openInquiryChat(matchedInq)
-                    matchedAppt != null -> viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS)
-                    matchedProp != null -> viewModel.openPropertyDetails(matchedProp)
-                    notif.type == com.example.data.model.NotificationType.VIEWING_BOOKED -> viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS)
-                    notif.type == com.example.data.model.NotificationType.NEW_INQUIRY -> viewModel.navigateTo(Screen.MESSAGES)
-                    else -> viewModel.navigateTo(Screen.HOME)
-                  }
-                }
-              },
-              onMarkAllAsRead = { viewModel.markAllNotificationsAsRead() },
-              onBackClick = {
-                val defaultScreen = if (uiState.userRole == UserRole.AGENT) Screen.AGENT_DASHBOARD else Screen.HOME
-                viewModel.navigateTo(defaultScreen)
+            Screen.PROPERTY_DETAILS -> {
+              uiState.selectedProperty?.let { property ->
+                PropertyDetailsScreen(
+                  property = property,
+                  selectedDate = uiState.bookingSelectedDate,
+                  selectedTimeSlot = uiState.bookingSelectedTime,
+                  onDateSelected = { date -> viewModel.setBookingDate(date) },
+                  onTimeSlotSelected = { time -> viewModel.setBookingTime(time) },
+                  onBackClick = { viewModel.closePropertyDetails() },
+                  onFavoriteClick = { viewModel.toggleFavorite(property.id) },
+                  onBookAppointmentClick = { viewModel.initiateBooking(property) },
+                  onInquiryClick = { viewModel.openInquiryDialog(true) },
+                  onEditClick = if (uiState.userRole == UserRole.AGENT) { { viewModel.openEditPropertyDialog(property) } } else null,
+                  onDeleteClick = if (uiState.userRole == UserRole.AGENT) { { viewModel.openDeletePropertyDialog(property) } } else null,
+                  onPlayVideoClick = { videoUrl -> viewModel.playVideo(videoUrl, property.title) }
+                )
               }
-            )
-          }
+            }
 
-          Screen.CALENDAR_APPOINTMENTS -> {
-            CalendarAppointmentsScreen(
-              appointments = appointments,
-              onUpdateStatus = { id, status -> viewModel.updateAppointmentStatus(id, status) }
-            )
-          }
+            Screen.AGENT_DASHBOARD -> {
+              AgentDashboardScreen(
+                agentProfile = agentProfile,
+                currentUser = currentUser,
+                connectionStatus = connectionStatus,
+                appointments = appointments,
+                inquiries = inquiries,
+                activeListingsCount = properties.size,
+                properties = properties,
+                onAddPropertyClick = { viewModel.openAddPropertyDialog(true) },
+                onAvailabilityClick = { viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS) },
+                onInquiriesClick = { viewModel.navigateTo(Screen.MESSAGES) },
+                onEditListingsClick = { viewModel.navigateTo(Screen.HOME) },
+                onAppointmentClick = { appt -> viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS) },
+                onInquiryClick = { inq -> viewModel.openInquiryChat(inq) },
+                onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
+                onEditPropertyClick = { prop -> viewModel.openEditPropertyDialog(prop) },
+                onDeletePropertyClick = { prop -> viewModel.openDeletePropertyDialog(prop) },
+                onPlayVideoClick = { videoUrl -> viewModel.playVideo(videoUrl, "Property Video Tour") }
+              )
+            }
 
-          Screen.PROFILE -> {
-            ProfileScreen(
-              userRole = uiState.userRole,
-              currentUser = currentUser,
-              agentProfile = agentProfile,
-              savedPropertiesCount = savedProperties.size,
-              upcomingViewingsCount = appointments.count { it.status == AppointmentStatus.UPCOMING },
-              databaseStats = databaseStats,
-              connectionStatus = connectionStatus,
-              onSyncBackend = { viewModel.syncWithBackend() },
-              onOpenClientAuth = { viewModel.openClientAuthDialog(true) },
-              onOpenAgentLogin = { viewModel.openAgentLoginDialog(true) },
-              onLogout = { viewModel.logout() },
-              onResetDatabase = { viewModel.resetDatabaseToDefaults() },
-              onToggleRole = { viewModel.toggleUserRole() },
-              onOpenNotifications = { viewModel.navigateTo(Screen.NOTIFICATIONS) },
-              onUpdatePassword = { currentPass, newPass -> viewModel.updateUserPassword(currentPass, newPass) }
-            )
+            Screen.SAVED -> if (currentUser == null) {
+              SignInRequiredScreen(
+                title = "Saved Properties",
+                icon = Icons.Default.FavoriteBorder,
+                heading = "Sign in to save homes",
+                message = "Create a free account or sign in to save properties you like and find them here anytime.",
+                onSignIn = { viewModel.openClientAuthDialog(true, prompt = "Sign in or create an account to save homes.") },
+                onExplore = { viewModel.navigateTo(Screen.HOME) }
+              )
+            } else {
+              SavedScreen(
+                savedProperties = savedProperties,
+                onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
+                onFavoriteClick = { id -> viewModel.toggleFavorite(id) },
+                onExploreClick = { viewModel.navigateTo(Screen.HOME) }
+              )
+            }
+
+            Screen.SEARCH -> {
+              SearchScreen(
+                properties = filteredProperties,
+                searchQuery = uiState.searchQuery,
+                selectedCategory = uiState.selectedCategory,
+                onSearchQueryChange = { viewModel.setSearchQuery(it) },
+                onCategorySelect = { viewModel.setSelectedCategory(it) },
+                onPropertyClick = { prop -> viewModel.openPropertyDetails(prop) },
+                onFavoriteClick = { id -> viewModel.toggleFavorite(id) },
+                onOpenFilterSheet = { viewModel.openFilterSheet(true) },
+                activeFilterCount = uiState.activeFilterCount,
+                minPrice = uiState.minPrice,
+                maxPrice = uiState.maxPrice,
+                minBeds = uiState.minBeds,
+                minBaths = uiState.minBaths,
+                minSqft = uiState.minSqft,
+                maxSqft = uiState.maxSqft,
+                minYearBuilt = uiState.minYearBuilt,
+                listingType = uiState.listingType,
+                selectedAmenities = uiState.selectedAmenities,
+                onClearPriceFilter = { viewModel.clearPriceFilter() },
+                onClearBedsFilter = { viewModel.clearBedsFilter() },
+                onClearBathsFilter = { viewModel.clearBathsFilter() },
+                onClearSqftFilter = { viewModel.clearSqftFilter() },
+                onClearYearBuiltFilter = { viewModel.clearYearBuiltFilter() },
+                onClearListingTypeFilter = { viewModel.clearListingTypeFilter() },
+                onRemoveAmenityFilter = { amenity -> viewModel.removeAmenityFilter(amenity) },
+                onResetFilters = { viewModel.resetFilters() },
+                onApplyQuickPreset = { preset -> viewModel.applyQuickPreset(preset) }
+              )
+            }
+
+            Screen.MESSAGES -> if (currentUser == null) {
+              SignInRequiredScreen(
+                title = "Inbox",
+                icon = Icons.Default.ChatBubbleOutline,
+                heading = "Sign in to message an agent",
+                message = "Sign in to ask agents about a listing and keep all your conversations in one place.",
+                onSignIn = { viewModel.openClientAuthDialog(true, prompt = "Sign in or create an account to message agents.") },
+                onExplore = { viewModel.navigateTo(Screen.HOME) }
+              )
+            } else {
+              MessagesScreen(
+                inquiries = inquiries,
+                selectedInquiry = selectedInquiry,
+                userRole = uiState.userRole,
+                properties = properties,
+                onSelectInquiry = { inq -> viewModel.openInquiryChat(inq) },
+                onBackToList = {
+                  viewModel.closeInquiryChat()
+                },
+                onSendMessage = { inqId, text -> viewModel.sendChatMessage(inqId, text) }
+              )
+            }
+
+            Screen.NOTIFICATIONS -> {
+              NotificationsScreen(
+                notifications = notifications,
+                onNotificationClick = { notif ->
+                  viewModel.markNotificationAsRead(notif.id)
+                  val target = notif.targetId
+                  if (target != null) {
+                    val matchedInq = inquiries.find { it.id == target }
+                    val matchedAppt = appointments.find { it.id == target }
+                    val matchedProp = filteredProperties.find { it.id == target }
+
+                    when {
+                      matchedInq != null -> viewModel.openInquiryChat(matchedInq)
+                      matchedAppt != null -> viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS)
+                      matchedProp != null -> viewModel.openPropertyDetails(matchedProp)
+                      notif.type == com.example.data.model.NotificationType.VIEWING_BOOKED -> viewModel.navigateTo(Screen.CALENDAR_APPOINTMENTS)
+                      notif.type == com.example.data.model.NotificationType.NEW_INQUIRY -> viewModel.navigateTo(Screen.MESSAGES)
+                      else -> viewModel.navigateTo(Screen.HOME)
+                    }
+                  }
+                },
+                onMarkAllAsRead = { viewModel.markAllNotificationsAsRead() },
+                onBackClick = {
+                  val defaultScreen = if (uiState.userRole == UserRole.AGENT) Screen.AGENT_DASHBOARD else Screen.HOME
+                  viewModel.navigateTo(defaultScreen)
+                }
+              )
+            }
+
+            Screen.CALENDAR_APPOINTMENTS -> {
+              CalendarAppointmentsScreen(
+                appointments = appointments,
+                onUpdateStatus = { id, status -> viewModel.updateAppointmentStatus(id, status) }
+              )
+            }
+
+            Screen.PROFILE -> {
+              ProfileScreen(
+                userRole = uiState.userRole,
+                currentUser = currentUser,
+                agentProfile = agentProfile,
+                savedPropertiesCount = savedProperties.size,
+                upcomingViewingsCount = appointments.count { it.status == AppointmentStatus.UPCOMING },
+                databaseStats = databaseStats,
+                connectionStatus = connectionStatus,
+                onSyncBackend = { viewModel.syncWithBackend() },
+                onOpenClientAuth = { viewModel.openClientAuthDialog(true) },
+                onOpenAgentLogin = { viewModel.openAgentLoginDialog(true) },
+                onLogout = { viewModel.logout() },
+                onResetDatabase = { viewModel.resetDatabaseToDefaults() },
+                onToggleRole = { viewModel.toggleUserRole() },
+                onOpenNotifications = { viewModel.navigateTo(Screen.NOTIFICATIONS) },
+                onUpdatePassword = { currentPass, newPass -> viewModel.updateUserPassword(currentPass, newPass) }
+              )
+            }
           }
         }
       }

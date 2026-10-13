@@ -79,6 +79,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.data.model.ListingLimits
+import com.example.data.model.ListingStatus
 import com.example.data.model.Property
 import com.example.ui.theme.*
 import com.example.ui.viewmodel.UserRole
@@ -306,6 +308,16 @@ fun PropertyCard(
               fontWeight = FontWeight.SemiBold,
               fontSize = 11.sp
             )
+          )
+        }
+
+        // Listing status (New Listing, Under Offer, Pending, Sold); Active needs no badge
+        if (!property.status.equals(ListingStatus.ACTIVE, ignoreCase = true)) {
+          ListingStatusBadge(
+            status = property.status,
+            modifier = Modifier
+              .padding(start = 12.dp, top = 42.dp)
+              .align(Alignment.TopStart)
           )
         }
 
@@ -760,7 +772,11 @@ fun QuickFilterBar(
         ActiveChip(label = "${minYearBuilt}+ Built", onRemove = onClearYearBuiltFilter)
       }
       if (minPrice > 0L || maxPrice < 50000000L) {
-        val label = "₱${minPrice / 1_000_000}M - ₱${maxPrice / 1_000_000}M"
+        val label = if (maxPrice >= ListingLimits.FILTER_MAX_PRICE) {
+          "₱${minPrice / 1_000_000}M+"
+        } else {
+          "₱${minPrice / 1_000_000}M - ₱${maxPrice / 1_000_000}M"
+        }
         ActiveChip(label = label, onRemove = onClearPriceFilter)
       }
       selectedAmenities.forEach { amenity ->
@@ -862,4 +878,31 @@ private fun ActiveChip(
   }
 }
 
+/** Background colour for a listing status badge. */
+fun listingStatusColor(status: String): Color = when {
+  status.equals(ListingStatus.NEW_LISTING, ignoreCase = true) -> ForestGreen
+  status.equals(ListingStatus.UNDER_OFFER, ignoreCase = true) -> AmberPending
+  status.equals(ListingStatus.PENDING, ignoreCase = true) -> NaturalDark
+  ListingStatus.isSold(status) -> RoseFavorite
+  else -> ForestGreen
+}
 
+/** Small coloured pill showing a listing's status. */
+@Composable
+fun ListingStatusBadge(status: String, modifier: Modifier = Modifier) {
+  Surface(
+    modifier = modifier.testTag("listing_status_badge"),
+    shape = RoundedCornerShape(8.dp),
+    color = listingStatusColor(status).copy(alpha = 0.92f)
+  ) {
+    Text(
+      text = status,
+      modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+      style = MaterialTheme.typography.labelSmall.copy(
+        color = Color.White,
+        fontWeight = FontWeight.Bold,
+        fontSize = 11.sp
+      )
+    )
+  }
+}

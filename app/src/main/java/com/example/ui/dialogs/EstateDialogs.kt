@@ -86,6 +86,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.data.model.ListingLimits
+import com.example.data.model.ListingStatus
 import com.example.data.model.Property
 import com.example.data.model.ViewingAppointment
 import com.example.ui.theme.*
@@ -1060,6 +1062,8 @@ fun AddPropertyDialog(
           )
         }
 
+        ListingLimitsHint(priceText, bedsText, bathsText, sqftText)
+
         Spacer(modifier = Modifier.height(10.dp))
 
         Text("PROPERTY CATEGORY", style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, color = TaupeMuted))
@@ -1173,10 +1177,14 @@ fun AddPropertyDialog(
                 return@Button
               }
 
-              val price = priceText.toLongOrNull() ?: if (isRental) 65000L else 9500000L
+              val price = ListingLimits.parseWholeNumber(priceText) ?: if (isRental) 65000L else 9500000L
               val beds = bedsText.toDoubleOrNull() ?: 3.0
               val baths = bathsText.toDoubleOrNull() ?: 2.0
-              val sqft = sqftText.toIntOrNull() ?: 1500
+              val sqft = ListingLimits.parseWholeNumber(sqftText) ?: 1500L
+              ListingLimits.validate(price, beds, baths, sqft.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())?.let {
+                errorMessage = it
+                return@Button
+              }
               val amenitiesList = amenitiesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
               val datesList = parseViewingDates(availableDatesText)
               val timeSlotsList = availableTimeSlotsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -1189,7 +1197,7 @@ fun AddPropertyDialog(
                 isRental,
                 beds,
                 baths,
-                sqft,
+                sqft.toInt(),
                 propertyType,
                 description.ifBlank { "Contemporary home with designer touches, high efficiency appliances, and prime central location in Cebu City." },
                 amenitiesList,
@@ -1237,7 +1245,7 @@ fun EditPropertyDialog(
   var errorMessage by remember { mutableStateOf<String?>(null) }
 
   val propertyTypes = listOf("Townhouse", "Houses", "Apartments", "Condos", "Loft")
-  val statusOptions = listOf("Active", "Under Offer", "Pending", "Sold")
+  val statusOptions = ListingStatus.ALL
   val inputColors = estateDialogTextFieldColors()
 
   Dialog(
@@ -1478,6 +1486,8 @@ fun EditPropertyDialog(
           )
         }
 
+        ListingLimitsHint(priceText, bedsText, bathsText, sqftText)
+
         Spacer(modifier = Modifier.height(10.dp))
 
         Text(
@@ -1598,10 +1608,15 @@ fun EditPropertyDialog(
         // Action Buttons: Save & Delete
         Button(
           onClick = {
-            val price = priceText.toLongOrNull() ?: property.price
+            val price = ListingLimits.parseWholeNumber(priceText) ?: property.price
             val beds = bedsText.toDoubleOrNull() ?: property.beds
             val baths = bathsText.toDoubleOrNull() ?: property.baths
-            val sqft = sqftText.toIntOrNull() ?: property.sqft
+            val sqftValue = ListingLimits.parseWholeNumber(sqftText) ?: property.sqft.toLong()
+            ListingLimits.validate(price, beds, baths, sqftValue.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())?.let {
+              errorMessage = it
+              return@Button
+            }
+            val sqft = sqftValue.toInt()
             val amenitiesList = amenitiesText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
             val datesList = parseViewingDates(availableDatesText)
             val timeSlotsList = availableTimeSlotsText.split(",").map { it.trim() }.filter { it.isNotEmpty() }
@@ -2114,7 +2129,11 @@ fun FilterBottomSheet(
               )
             )
             Text(
-              text = "₱${String.format(java.util.Locale.getDefault(), "%,d", priceRange.start.toLong())} - ₱${String.format(java.util.Locale.getDefault(), "%,d", priceRange.endInclusive.toLong())}",
+              text = if (priceRange.endInclusive >= ListingLimits.FILTER_MAX_PRICE) {
+                "₱${ListingLimits.formatNumber(priceRange.start.toLong())}+"
+              } else {
+                "₱${ListingLimits.formatNumber(priceRange.start.toLong())} - ₱${ListingLimits.formatNumber(priceRange.endInclusive.toLong())}"
+              },
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = ForestGreen,
@@ -2302,7 +2321,11 @@ fun FilterBottomSheet(
               )
             )
             Text(
-              text = "${String.format(java.util.Locale.getDefault(), "%,d", sqftRange.start.toInt())} - ${String.format(java.util.Locale.getDefault(), "%,d", sqftRange.endInclusive.toInt())}+ sqft",
+              text = if (sqftRange.endInclusive >= ListingLimits.FILTER_MAX_SQFT) {
+                "${ListingLimits.formatNumber(sqftRange.start.toLong())}+ sqft"
+              } else {
+                "${ListingLimits.formatNumber(sqftRange.start.toLong())} - ${ListingLimits.formatNumber(sqftRange.endInclusive.toLong())} sqft"
+              },
               style = MaterialTheme.typography.bodyMedium.copy(
                 fontWeight = FontWeight.Bold,
                 color = ForestGreen,
@@ -2769,4 +2792,26 @@ private fun parseViewingDates(text: String): List<String> {
     }
   }
   return dates
+}
+
+/** Shows the listing limits under the size fields, in red when a typed value is outside them. */
+@Composable
+private fun ListingLimitsHint(priceText: String, bedsText: String, bathsText: String, sqftText: String) {
+  val problem = ListingLimits.validate(
+    price = ListingLimits.parseWholeNumber(priceText) ?: 1L,
+    beds = bedsText.toDoubleOrNull() ?: 0.0,
+    baths = bathsText.toDoubleOrNull() ?: 0.0,
+    sqft = (ListingLimits.parseWholeNumber(sqftText) ?: 1L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+  )
+  Text(
+    text = problem ?: "Max price ₱${ListingLimits.formatNumber(ListingLimits.MAX_PRICE)} · " +
+      "size up to ${ListingLimits.formatNumber(ListingLimits.MAX_SQFT.toLong())} sqft · " +
+      "up to ${ListingLimits.MAX_ROOMS.toInt()} beds and baths",
+    modifier = Modifier.padding(top = 4.dp),
+    style = MaterialTheme.typography.bodySmall.copy(
+      color = if (problem != null) RoseFavorite else TaupeMuted,
+      fontWeight = if (problem != null) FontWeight.Medium else FontWeight.Normal,
+      fontSize = 11.sp
+    )
+  )
 }
