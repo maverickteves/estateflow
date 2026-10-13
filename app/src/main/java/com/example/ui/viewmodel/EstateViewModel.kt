@@ -153,11 +153,29 @@ class EstateViewModel(
   val properties: StateFlow<List<Property>> = repository.properties
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-  val appointments: StateFlow<List<ViewingAppointment>> = repository.appointments
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+  // Buyers only see their own bookings and conversations, even if the server sends everyone's.
+  // Agents see all of them. Signed-out users see none.
+  val appointments: StateFlow<List<ViewingAppointment>> = combine(
+    repository.appointments,
+    repository.activeSession
+  ) { list, user ->
+    when {
+      user == null -> emptyList()
+      user.role == UserRole.AGENT -> list
+      else -> list.filter { it.clientEmail.trim().equals(user.email.trim(), ignoreCase = true) }
+    }
+  }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-  val inquiries: StateFlow<List<Inquiry>> = repository.inquiries
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+  val inquiries: StateFlow<List<Inquiry>> = combine(
+    repository.inquiries,
+    repository.activeSession
+  ) { list, user ->
+    when {
+      user == null -> emptyList()
+      user.role == UserRole.AGENT -> list
+      else -> list.filter { it.senderEmail.trim().equals(user.email.trim(), ignoreCase = true) }
+    }
+  }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   val notifications: StateFlow<List<NotificationItem>> = repository.notifications
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -893,23 +911,6 @@ class EstateViewModel(
     val isAgent = _uiState.value.userRole == UserRole.AGENT
     viewModelScope.launch {
       repository.replyToInquiry(inquiryId, text, isAgent = isAgent)
-
-      // If buyer sends message, simulate realistic agent reply after a brief moment
-      if (!isAgent) {
-        kotlinx.coroutines.delay(1200)
-        val replyText = when {
-          text.contains("dues", ignoreCase = true) || text.contains("floor plan", ignoreCase = true) ||
-            text.contains("strata", ignoreCase = true) || text.contains("prospectus", ignoreCase = true) ->
-            "I'll send the floor plans and the monthly association dues breakdown to your email right away!"
-          text.contains("tour", ignoreCase = true) || text.contains("walkthrough", ignoreCase = true) || text.contains("viewing", ignoreCase = true) || text.contains("available", ignoreCase = true) ->
-            "The property is available! Feel free to pick a viewing time slot from the listing page or let me know your preferred time."
-          text.contains("price", ignoreCase = true) || text.contains("offer", ignoreCase = true) || text.contains("tax", ignoreCase = true) ->
-            "Real property tax here is usually around 1-2% of the assessed value per year, and the sellers are open to reasonable offers this week."
-          else ->
-            "Thanks for reaching out! I've noted your inquiry and will follow up with the full details shortly."
-        }
-        repository.replyToInquiry(inquiryId, replyText, isAgent = true)
-      }
       refreshDatabaseStats()
     }
   }

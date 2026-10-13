@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -343,52 +344,59 @@ fun MessagesScreen(
             .padding(horizontal = 16.dp, vertical = 12.dp),
           verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-          items(selectedInquiry.messages) { msg ->
-            val isMyMsg = (userRole == UserRole.AGENT && msg.sender == "agent") || (userRole == UserRole.BUYER && msg.sender == "user")
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              horizontalArrangement = if (isMyMsg) Arrangement.End else Arrangement.Start
-            ) {
-              Column(
-                modifier = Modifier
-                  .widthIn(max = 280.dp)
-                  .clip(
-                    RoundedCornerShape(
-                      topStart = 16.dp,
-                      topEnd = 16.dp,
-                      bottomStart = if (isMyMsg) 16.dp else 4.dp,
-                      bottomEnd = if (isMyMsg) 4.dp else 16.dp
-                    )
-                  )
-                  .background(if (isMyMsg) ForestGreen else Color.White)
-                  .border(
-                    1.dp,
-                    if (isMyMsg) ForestGreen else SandWarm,
-                    RoundedCornerShape(
-                      topStart = 16.dp,
-                      topEnd = 16.dp,
-                      bottomStart = if (isMyMsg) 16.dp else 4.dp,
-                      bottomEnd = if (isMyMsg) 4.dp else 16.dp
-                    )
-                  )
-                  .padding(horizontal = 14.dp, vertical = 10.dp)
+          itemsIndexed(selectedInquiry.messages) { index, msg ->
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+              val isMyMsg = (userRole == UserRole.AGENT && msg.sender == "agent") || (userRole == UserRole.BUYER && msg.sender == "user")
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = if (isMyMsg) Arrangement.End else Arrangement.Start
               ) {
-                Text(
-                  text = msg.text,
-                  style = MaterialTheme.typography.bodyMedium.copy(
-                    color = if (isMyMsg) Color.White else NaturalDark,
-                    fontSize = 14.sp
+                Column(
+                  modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .clip(
+                      RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isMyMsg) 16.dp else 4.dp,
+                        bottomEnd = if (isMyMsg) 4.dp else 16.dp
+                      )
+                    )
+                    .background(if (isMyMsg) ForestGreen else Color.White)
+                    .border(
+                      1.dp,
+                      if (isMyMsg) ForestGreen else SandWarm,
+                      RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isMyMsg) 16.dp else 4.dp,
+                        bottomEnd = if (isMyMsg) 4.dp else 16.dp
+                      )
+                    )
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                  Text(
+                    text = msg.text,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                      color = if (isMyMsg) Color.White else NaturalDark,
+                      fontSize = 14.sp
+                    )
                   )
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                  text = msg.time,
-                  style = MaterialTheme.typography.labelSmall.copy(
-                    color = if (isMyMsg) Color.White.copy(alpha = 0.7f) else TaupeMuted,
-                    fontSize = 10.sp
-                  ),
-                  modifier = Modifier.align(Alignment.End)
-                )
+                  Spacer(modifier = Modifier.height(3.dp))
+                  Text(
+                    text = msg.time,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                      color = if (isMyMsg) Color.White.copy(alpha = 0.7f) else TaupeMuted,
+                      fontSize = 10.sp
+                    ),
+                    modifier = Modifier.align(Alignment.End)
+                  )
+                }
+              }
+              // One automatic thank-you after the buyer's first message. It is shown
+              // only on the buyer's screen and never saved, so it can't repeat.
+              if (index == 0 && userRole == UserRole.BUYER) {
+                AutoReplyNote(agentName = headerDisplayName)
               }
             }
           }
@@ -491,6 +499,30 @@ fun MessagesScreen(
           }
         }
       }
+    }
+  }
+}
+
+@Composable
+private fun AutoReplyNote(agentName: String) {
+  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+    Column(
+      modifier = Modifier
+        .widthIn(max = 280.dp)
+        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp))
+        .background(SandWarm.copy(alpha = 0.35f))
+        .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+      Text(
+        text = "Thank you for your inquiry! $agentName has been notified and will reply here as soon as possible.",
+        style = MaterialTheme.typography.bodyMedium.copy(color = NaturalDark, fontSize = 14.sp)
+      )
+      Spacer(modifier = Modifier.height(3.dp))
+      Text(
+        text = "Automatic reply",
+        style = MaterialTheme.typography.labelSmall.copy(color = TaupeMuted, fontSize = 10.sp),
+        modifier = Modifier.align(Alignment.End)
+      )
     }
   }
 }
