@@ -1,5 +1,6 @@
 package com.example.ui.dialogs
 
+import com.example.data.model.LicenseNumber
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -850,11 +851,13 @@ fun AgentLoginDialog(
           OutlinedTextField(
             value = regLicense,
             onValueChange = {
-              regLicense = it
+              regLicense = LicenseNumber.normalize(it).take(LicenseNumber.LENGTH)
               localError = null
             },
             label = { Text("Realtor ID (License #)") },
-            placeholder = { Text("e.g. PRC-REB-0012345") },
+            placeholder = { Text("e.g. ${LicenseNumber.EXAMPLE}") },
+            isError = regLicense.isNotEmpty() && regLicense.length == LicenseNumber.LENGTH && !LicenseNumber.isValid(regLicense),
+            supportingText = { Text("Format: ${LicenseNumber.EXAMPLE} (PRC-REB- and 7 digits)") },
             leadingIcon = { Icon(Icons.Default.Badge, contentDescription = null) },
             singleLine = true,
             modifier = Modifier
@@ -942,13 +945,14 @@ fun AgentLoginDialog(
                 regName.isBlank() -> localError = "Please enter your legal name."
                 regEmail.isBlank() -> localError = "Please enter your professional agent email."
                 regLicense.isBlank() -> localError = "Please enter your Realtor ID / License number."
+                !LicenseNumber.isValid(regLicense) -> localError = LicenseNumber.ERROR
                 regPassword.length < 8 -> localError = "Password must be at least 8 characters."
                 regPassword != regConfirmPassword -> localError = "Passwords do not match. Please re-enter your password to confirm."
                 !regAcceptedTerms -> localError = "Please agree to the Terms of Service to register."
                 else -> onSignUpAgent(
                   regName,
                   regEmail,
-                  regLicense,
+                  LicenseNumber.normalize(regLicense),
                   "Estateflow Luxury Realty",
                   "Licensed Real Estate Agent",
                   regPassword

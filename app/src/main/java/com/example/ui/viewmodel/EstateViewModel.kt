@@ -154,25 +154,39 @@ class EstateViewModel(
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   // Buyers only see their own bookings and conversations, even if the server sends everyone's.
-  // Agents see all of them. Signed-out users see none.
+  // Agents only see the ones for listings they posted (the listing's agent email is theirs).
+  // Signed-out users see none.
+  private fun agentListingIds(properties: List<Property>, user: UserAccount): Set<String> =
+    properties.filter { it.agentEmail.trim().equals(user.email.trim(), ignoreCase = true) }
+      .map { it.id }
+      .toSet()
+
   val appointments: StateFlow<List<ViewingAppointment>> = combine(
     repository.appointments,
-    repository.activeSession
-  ) { list, user ->
+    repository.activeSession,
+    repository.properties
+  ) { list, user, properties ->
     when {
       user == null -> emptyList()
-      user.role == UserRole.AGENT -> list
+      user.role == UserRole.AGENT -> {
+        val mine = agentListingIds(properties, user)
+        list.filter { it.propertyId in mine }
+      }
       else -> list.filter { it.clientEmail.trim().equals(user.email.trim(), ignoreCase = true) }
     }
   }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   val inquiries: StateFlow<List<Inquiry>> = combine(
     repository.inquiries,
-    repository.activeSession
-  ) { list, user ->
+    repository.activeSession,
+    repository.properties
+  ) { list, user, properties ->
     when {
       user == null -> emptyList()
-      user.role == UserRole.AGENT -> list
+      user.role == UserRole.AGENT -> {
+        val mine = agentListingIds(properties, user)
+        list.filter { it.propertyId in mine }
+      }
       else -> list.filter { it.senderEmail.trim().equals(user.email.trim(), ignoreCase = true) }
     }
   }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

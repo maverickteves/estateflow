@@ -11,6 +11,7 @@ import com.example.data.local.entity.PropertyEntity
 import com.example.data.local.entity.UserSessionEntity
 import com.example.data.local.entity.ViewingAppointmentEntity
 import com.example.data.model.AgentProfile
+import com.example.data.model.LicenseNumber
 import com.example.data.model.AppointmentStatus
 import com.example.data.model.ChatMessage
 import com.example.data.model.Inquiry
@@ -272,7 +273,9 @@ class EstateRepository private constructor(
     availableTimeSlots: List<String> = listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM")
   ): Property = withContext(Dispatchers.IO) {
     val formattedPrice = if (isRental) "₱${String.format("%,d", price)} / mo" else "₱${String.format("%,d", price)}"
-    val newProperty = Property(
+    // Stamp the listing with the signed-in agent, so buyers' chats and bookings reach that agent.
+    val agent = database.userSessionDao().findActiveSession()?.toDomain()
+    val listing = Property(
       id = UUID.randomUUID().toString(),
       title = title,
       address = address,
@@ -292,6 +295,12 @@ class EstateRepository private constructor(
       availableDates = availableDates.ifEmpty { upcomingViewingDates() },
       availableTimeSlots = availableTimeSlots.ifEmpty { listOf("10:00 AM", "1:30 PM", "4:00 PM", "5:30 PM") },
       amenities = if (amenities.isEmpty()) listOf("Modern Design", "High Speed Internet", "Near Transit") else amenities
+    )
+    val newProperty = if (agent == null || agent.email.isBlank()) listing else listing.copy(
+      agentName = agent.name.ifBlank { listing.agentName },
+      agentTitle = "${agent.professionalRole} • ${agent.agency.ifBlank { "Estateflow Luxury Realty" }}",
+      agentPhone = agent.phone.ifBlank { listing.agentPhone },
+      agentEmail = agent.email
     )
 
     database.propertyDao().insertProperty(PropertyEntity.fromDomain(newProperty))
@@ -487,13 +496,14 @@ class EstateRepository private constructor(
   ): Result<UserAccount> = withContext(Dispatchers.IO) {
     val cleanName = name.trim()
     val cleanEmail = email.trim()
-    val cleanLicense = licenseNo.trim()
+    val cleanLicense = LicenseNumber.normalize(licenseNo)
     val cleanAgency = agency.trim().ifBlank { "Estateflow Luxury Realty" }
     val cleanRole = professionalRole.trim().ifBlank { "Licensed Real Estate Agent" }
 
     if (cleanName.isBlank()) return@withContext Result.failure(Exception("Please enter your legal name."))
     if (cleanEmail.isBlank()) return@withContext Result.failure(Exception("Please enter your agent email."))
     if (cleanLicense.isBlank()) return@withContext Result.failure(Exception("Please enter your PRC real estate license number."))
+    if (!LicenseNumber.isValid(cleanLicense)) return@withContext Result.failure(Exception(LicenseNumber.ERROR))
     if (password.length < 8) return@withContext Result.failure(Exception("Password must be at least 8 characters."))
 
     val remoteAccount = syncManager?.signupAgentOnBackend(
