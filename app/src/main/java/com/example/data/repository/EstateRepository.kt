@@ -535,15 +535,6 @@ class EstateRepository private constructor(
     )
     database.userSessionDao().insertSession(UserSessionEntity.fromDomain(agentAccount))
 
-    val currentProfile = database.agentProfileDao().getProfile().firstOrNull()?.toDomain() ?: AgentProfile()
-    val updatedProfile = currentProfile.copy(
-      name = cleanName,
-      email = cleanEmail,
-      licenseNo = cleanLicense,
-      title = "$cleanRole • $cleanAgency"
-    )
-    database.agentProfileDao().insertOrUpdateProfile(AgentProfileEntity.fromDomain(updatedProfile))
-
     Result.success(agentAccount)
   }
 

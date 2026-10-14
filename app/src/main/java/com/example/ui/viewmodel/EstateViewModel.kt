@@ -194,8 +194,32 @@ class EstateViewModel(
   val notifications: StateFlow<List<NotificationItem>> = repository.notifications
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-  val agentProfile: StateFlow<AgentProfile> = repository.agentProfile
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AgentProfile())
+  // The synced profile belongs to one agent. A different signed-in agent sees their own
+  // details instead, so the demo agent and newly registered agents never show each other's profile.
+  val agentProfile: StateFlow<AgentProfile> = combine(
+    repository.agentProfile,
+    repository.activeSession,
+    repository.properties
+  ) { profile, user, properties ->
+    if (user == null || user.role != UserRole.AGENT ||
+      profile.email.trim().equals(user.email.trim(), ignoreCase = true)
+    ) {
+      profile
+    } else {
+      AgentProfile(
+        name = user.name,
+        title = "${user.professionalRole} • ${user.agency.ifBlank { "Estateflow Luxury Realty" }}",
+        licenseNo = user.licenseNo,
+        phone = user.phone,
+        email = user.email,
+        rating = 0.0,
+        reviewsCount = 0,
+        totalSalesVolume = "₱0",
+        activeListingsCount = agentListingIds(properties, user).size,
+        bio = ""
+      )
+    }
+  }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AgentProfile())
 
   val currentUser: StateFlow<UserAccount?> = repository.activeSession
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
