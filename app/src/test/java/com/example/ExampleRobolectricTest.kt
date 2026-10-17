@@ -230,7 +230,7 @@ class ExampleRobolectricTest {
   @Test
   fun `backend baseUrl is normalized for local and Wasmer deployments`() {
     val defaultUrl = com.example.data.remote.EstateApiClient.DEFAULT_EMULATOR_URL
-    assertEquals("https://estateflow-backend.wasmer.app/api/", defaultUrl)
+    assertEquals("https://swu-005.wasmer.app/api/", defaultUrl)
 
     val normalized1 = com.example.data.remote.EstateApiClient.normalizeUrl("http://10.0.2.2")
     assertEquals("http://10.0.2.2/estateflow-backend/api/", normalized1)
@@ -242,14 +242,14 @@ class ExampleRobolectricTest {
     assertEquals("http://192.168.1.50/estateflow-backend/api/", normalized3)
 
     val normalizedWasmer = com.example.data.remote.EstateApiClient.normalizeUrl(
-      "https://estateflow-backend.wasmer.app/estateflow-backend/api/"
+      "https://swu-005.wasmer.app/estateflow-backend/api/"
     )
-    assertEquals("https://estateflow-backend.wasmer.app/api/", normalizedWasmer)
+    assertEquals("https://swu-005.wasmer.app/api/", normalizedWasmer)
 
     val normalizedWasmerRoot = com.example.data.remote.EstateApiClient.normalizeUrl(
-      "https://estateflow-backend.wasmer.app"
+      "https://swu-005.wasmer.app"
     )
-    assertEquals("https://estateflow-backend.wasmer.app/api/", normalizedWasmerRoot)
+    assertEquals("https://swu-005.wasmer.app/api/", normalizedWasmerRoot)
   }
 
   @Test

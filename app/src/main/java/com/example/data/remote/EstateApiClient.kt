@@ -74,7 +74,7 @@ class EstateApiClient private constructor(context: Context) {
   }
 
   companion object {
-    const val DEFAULT_EMULATOR_URL = "https://estateflow-backend.wasmer.app/api/"
+    const val DEFAULT_EMULATOR_URL = "https://swu-005.wasmer.app/api/"
     private const val KEY_AUTH_TOKEN = "auth_token"
 
     @Volatile
