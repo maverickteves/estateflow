@@ -1,5 +1,12 @@
 # Estateflow
 
+## GROUP MEMBERS
+
+- Lim, Ryan James M.
+- Salazar, Lhord Donnie D.
+- Sasing, Dan Joseph
+- Teves, Maverick B.
+
 Estateflow is a modern Android real-estate app built with Kotlin and Jetpack Compose. It is designed to help buyers browse listings, save favorite properties, book viewings, and message agents, while also giving agents a dashboard to manage listings, appointments, inquiries, and notifications.
 
 The app blends a polished property marketplace UI with local persistence, backend sync, and role-based behavior so it can function as a demo property platform or a foundation for a production real-estate experience.
